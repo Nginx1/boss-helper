@@ -32,6 +32,7 @@ const context = vm.createContext({
   yh: Error,
 });
 vm.runInContext(section('/* bh-multi-greeting:', '/* end bh-multi-greeting helpers */') +
+  section('function BHIsBridgeUnavailable', 'function BHAssertCanSend(helper)') +
   section('function BHAssertCanSend(helper)', 'function BHHasJobDetail') +
   section('async function BHAICacheKey', '/* end bh-safe-pacing helpers */') +
   section('function Oh(', 'function kh('), context);
