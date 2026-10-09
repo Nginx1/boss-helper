@@ -1,0 +1,24 @@
+{
+  "createdAt": "2026-10-09T06:09:20.990Z",
+  "extensionVersion": "0.5.2",
+  "currentTag": "v0.5.2-local.20261009",
+  "baseline": {
+    "tag": "v0.5.2-local.20261009-pre-bridge",
+    "commit": "77d0eb5d158c382f62aad409d0293dd2f4e52d1c",
+    "source": "Three pre-bridge script backups and the prior greeting test; other files imported from the current directory. Not a complete original upstream release.",
+    "filesSHA256": {
+      "boss.js": "8400a7f12b43cd84ef4dcc749cbd6b7cd3feec8980f93c4fabb4b170119f2a98",
+      "content-scripts/content.js": "7f0f17431be8bb1ee8a09b7bf4100bb90c7be030aa47970caba53e91255ea344",
+      "background.js": "05a866b2e8fb73d9f542322caff11136b81c0b16d5352a463f9e1c91d5467c50",
+      "diagnostics/multi-greeting.test.cjs": "3894e2027fcaa462e15522f805b207ef01bc2e68c04326cf1c64215da74b72f5"
+    }
+  },
+  "fixCommit": "f9bef7499315368c63aab1103df2b9b6f0a1f0be",
+  "currentScriptsSHA256": {
+    "boss.js": "ee2ee972bae9ddfb1bb9a4f23656f77ca8f7da98686e2eca040dd8a05281eac9",
+    "content-scripts/content.js": "300a74ac2916c6fabf13058a4df3b7a89fcbe54f99f7421f0a9c0a2efb31e597",
+    "background.js": "0d3811cdb1d0b35b629021d5a3624368038c9ed994df9928bef9d371e3f4dd60"
+  },
+  "localOnly": true,
+  "excluded": "Historical .codex-backup-* files stay on disk; the regression fixture is tracked."
+}
