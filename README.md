@@ -2,6 +2,8 @@
 
 本目录是 Edge 扩展 0.5.2 的已打包文件，使用 Git 管理本地修复。当前维护标签为 `v0.5.2-local.20261009`，扩展自身的 `manifest.json` 版本仍为 0.5.2。
 
+GitHub 仓库：[Nginx1/boss-helper](https://github.com/Nginx1/boss-helper)。当前维护分支为 [`local/edge-0.5.2-20261009`](https://github.com/Nginx1/boss-helper/tree/local/edge-0.5.2-20261009)，保存本地修复后的扩展打包文件；现有 `main` 源码分支保持原样。
+
 ## 版本记录
 
 | 标签 | 用途 |
@@ -56,9 +58,11 @@ git switch -c rollback/pre-bridge v0.5.2-local.20261009-pre-bridge
 要回到当前维护版本：
 
 ```powershell
-git switch main
+git switch local/edge-0.5.2-20261009
 ```
 
 每次切换后都重新加载扩展、刷新 BOSS 页面。旧的 `*.codex-backup-*` 文件保留在磁盘上，由 `.gitignore` 排除；它们不随仓库复制，测试需要的对照样本已单独纳入版本管理。
 
-仓库保存在本机，未配置远程。提交作者暂设为 `Codex <codex@localhost>`，只影响此仓库；可用 `git config --local user.name` 和 `git config --local user.email` 改为自己的提交身份。
+本地仓库已关联上述 GitHub 仓库，维护分支使用同名远程分支，可执行 `git push` 同步后续提交。新的版本标签需使用 `git push origin 标签名` 单独同步。快照来源文件记录的是最初建库时的状态。
+
+沿用上游 MIT 许可证，见 [LICENSE](LICENSE)。提交作者暂设为 `Codex <codex@localhost>`，只影响此仓库；可用 `git config --local user.name` 和 `git config --local user.email` 改为自己的提交身份。
