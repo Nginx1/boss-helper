@@ -1,0 +1,6 @@
+# Preserve packaged extension scripts exactly, including line endings.
+* -text
+*.md text eol=lf
+.gitignore text eol=lf
+.gitattributes text eol=lf
+*.png binary
