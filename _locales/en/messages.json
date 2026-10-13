@@ -1,8 +1,8 @@
 {
   "extName": {
-    "message": "boss-helper"
+    "message": "boss-helper (Personal Edition)"
   },
   "extDescription": {
-    "message": "BOSS Direct Assistant, Supports rich filtering rules and AI integration, enabling both screening and automatic greetings."
+    "message": "Personal BOSS job assistant with job filtering, AI analysis, two or three greeting messages, local configuration and activity logs."
   }
 }

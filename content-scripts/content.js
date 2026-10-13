@@ -1,3 +1,4 @@
+/*! boss-helper（我的维护版） v0.6.0 | Personal maintenance: Nginx1 | See LICENSE and NOTICE */
 var content=(function(){
 /* bh-bridge-recovery:20261009 — probe immediately, without a timer-driven first ping. */
 function BHBridgeHeartbeat(transport, options, types, actors, makeId) {

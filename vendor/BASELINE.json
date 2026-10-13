@@ -1,0 +1,11 @@
+{
+  "importedAt": "2026-10-13",
+  "baselineCommit": "87f5887",
+  "baselineVersion": "0.5.2",
+  "origin": "The locally maintained MIT-derived Edge bundle, with bridge, cache and multi-greeting fixes and About panel removal. Templates are compiled runtime, not the original Vue/WXT source.",
+  "sha256": {
+    "vendor/boss.template.js": "453931237ffa60a6946e4b5e79685498050f08bcf96da392acb20c7bafc3b259",
+    "vendor/background.template.js": "93bf89ca056f3c4820bf5841a5c8384c73dcae3012cda93e498239f088333608",
+    "vendor/content.template.js": "f52bb8f13fa970bf7f2785311eb779b8256def4e52fa473840384a967b97af1b"
+  }
+}

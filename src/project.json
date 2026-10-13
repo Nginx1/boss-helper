@@ -1,0 +1,15 @@
+{
+  "name": "boss-helper（我的维护版）",
+  "shortName": "boss-helper",
+  "nameEN": "boss-helper (Personal Edition)",
+  "version": "0.6.0",
+  "versionName": "0.6.0 · 我的维护版",
+  "maintainer": "Nginx1",
+  "repository": "https://github.com/Nginx1/boss-helper",
+  "feedback": "https://github.com/Nginx1/boss-helper/issues",
+  "branch": "personal/edge-0.6.0",
+  "releaseDate": "2026-10-13",
+  "description": "我的 BOSS 直聘求职助手，支持岗位筛选、AI 分析及两条或三条招呼，提供本地配置和运行日志。",
+  "descriptionEN": "Personal BOSS job assistant with job filtering, AI analysis, two or three greeting messages, local configuration and activity logs.",
+  "releaseNotes": "个人独立维护版：移除关于与赞赏、原作者公告和商店更新；使用自己的项目入口、本地图标及可重复构建工程。保留通信恢复、缓存详情恢复和两条或三条招呼。"
+}

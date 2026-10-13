@@ -1,0 +1,17 @@
+boss-helper（我的维护版）
+Personal maintenance: Nginx1
+Project: https://github.com/Nginx1/boss-helper
+
+This personal edition is derived from the MIT-licensed boss-helper by Ocyss.
+Original copyright and permission notice are preserved in LICENSE.
+The original project is not the publisher or maintainer of this personal edition.
+
+The baseline compiled runtime and its bundled dependencies remain derived code.
+The personal configuration, version and welcome UI, local icon artwork, build
+tools, packaging tools, regression checks and maintenance documentation are
+maintained in this project. This is not a claim that all inherited code was
+originally authored by Nginx1.
+
+Historical baseline: local bundle 0.5.2, commit 87f5887 (2026-10-13 import).
+Its bridge, caching and multiple-greeting fixes have been preserved.
+Bundled library license banners, including Tailwind CSS, remain in the runtime.

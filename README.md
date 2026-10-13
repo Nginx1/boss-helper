@@ -1,68 +1,37 @@
-# BOSS Helper 本地维护版
+# boss-helper（我的维护版）
 
-本目录是 Edge 扩展 0.5.2 的已打包文件，使用 Git 管理本地修复。当前维护标签为 `v0.5.2-local.20261009`，扩展自身的 `manifest.json` 版本仍为 0.5.2。
+Nginx1 的 BOSS 直聘求职助手，当前个人版本 **0.6.0**。支持岗位筛选、AI 分析、两条或三条招呼、配置预设和运行日志。
 
-GitHub 仓库：[Nginx1/boss-helper](https://github.com/Nginx1/boss-helper)。当前维护分支为 [`local/edge-0.5.2-20261009`](https://github.com/Nginx1/boss-helper/tree/local/edge-0.5.2-20261009)，保存本地修复后的扩展打包文件；现有 `main` 源码分支保持原样。
+项目仓库：[Nginx1/boss-helper](https://github.com/Nginx1/boss-helper)。个人维护分支：`personal/edge-0.6.0`；本地版本标签：`v0.6.0-personal.20261013`。
 
-## 版本记录
+本版使用自己的名称、图标、版本信息、欢迎说明和反馈入口；不读取原作者的公告、问卷或扩展商店更新。“关于&赞赏”标签页已移除。
 
-| 标签 | 用途 |
-| --- | --- |
-| `v0.5.2-local.20261009` | 当前修复版本：通信恢复、缓存详情恢复、取消状态分类 |
-| `v0.5.2-local.20261009-pre-bridge` | 本次通信修复前的恢复快照，包含原有两条／三条招呼和间隔设置 |
+## 安装
 
-历史快照在 2026-10-09 按本地备份重建，三个脚本和旧测试使用同日修复前备份，其余静态资源来自建库时的项目目录。它不是完整的原始上游版本历史。更多内容见 [更新记录](CHANGELOG.md)、[修复说明](docs/2026-10-09-bridge-recovery.md) 和 [快照来源](docs/version-history.json)。
+本机现有安装目录仍为 `D:\Download\boss-helper-0.5.2-edge`。停止投递，在 Edge 扩展页重新加载，再刷新 BOSS 页面即可使用新版本。保持原目录有助于沿用现有配置。
 
-## 加载与验证
+安装 ZIP 的新装和配置迁移见 [安装说明](docs/install.md)。
 
-在 Edge 扩展页通过“加载解压缩的扩展”选择本目录。修改或切换版本后，先停止投递任务，再重新加载扩展并刷新 BOSS 页面。
+## 构建与检查
 
-本项目没有完整构建源码或安装依赖要求。安装 Node.js 后，可直接运行已有离线测试：
+需要 Node.js 18 或以上，无需安装第三方构建依赖。
 
 ```powershell
-node diagnostics\bridge-recovery.test.cjs
-node diagnostics\multi-greeting.test.cjs
+node scripts/build.cjs
+node scripts/test.cjs
+node scripts/package.cjs
 ```
 
-测试不发真实请求、不发送消息。历史恢复快照只包含多条招呼测试；通信测试随修复版本加入。
+构建默认更新根目录可加载文件。打包产生 `dist/boss-helper-personal-0.6.0.zip`。离线检查覆盖通信恢复、多条招呼、无外部公告轮询、个人入口、版本和生成物一致性；不会发真实消息。
 
-## 后续改动
+## 维护
 
-在项目目录检查、测试并提交：
+修改名称、版本和项目地址从 `src/project.json` 开始。自己的界面、配置及辅助源码在 `src`；构建和打包工具在 `scripts`；来源记录和冻结运行时在 `vendor`。
 
-```powershell
-git status
-git diff
-node diagnostics\bridge-recovery.test.cjs
-node diagnostics\multi-greeting.test.cjs
-git add --all
-git commit -m "说明本次具体改动"
-```
+本工程是已打包扩展的独立维护工程，冻结运行时仍为编译代码；它不是完整原生 Vue/WXT 源码重写。此前已验证的通信、缓存、超时与多条招呼修复保留在发行版中。详细说明见 [维护文档](docs/maintenance.md)、[更新记录](CHANGELOG.md)、[提示词变量](docs/prompt-variables.md) 和 [数据与网络说明](PRIVACY.md)。
 
-确认版本后创建唯一标签，例如 `git tag -a v0.5.2-local.20261010 -m "版本改动说明"`。同日多个版本在日期后追加序号，保留已经创建的标签。
+## 来源和许可
 
-## 查看和回退
+基于 Ocyss 的 MIT 开源项目衍生维护。原版权声明、个人维护版权和许可条件见 [LICENSE](LICENSE)，衍生来源见 [NOTICE](NOTICE)。个人版归 Nginx1 独立维护，不声称继承代码全部为原创。
 
-```powershell
-git log --oneline --decorate
-git tag --list
-git diff v0.5.2-local.20261009-pre-bridge v0.5.2-local.20261009 -- boss.js background.js content-scripts/content.js
-```
-
-要运行修复前版本，先停止投递任务，提交或保存尚未提交的改动，然后创建回退分支：
-
-```powershell
-git switch -c rollback/pre-bridge v0.5.2-local.20261009-pre-bridge
-```
-
-要回到当前维护版本：
-
-```powershell
-git switch local/edge-0.5.2-20261009
-```
-
-每次切换后都重新加载扩展、刷新 BOSS 页面。旧的 `*.codex-backup-*` 文件保留在磁盘上，由 `.gitignore` 排除；它们不随仓库复制，测试需要的对照样本已单独纳入版本管理。
-
-本地仓库已关联上述 GitHub 仓库，维护分支使用同名远程分支，可执行 `git push` 同步后续提交。新的版本标签需使用 `git push origin 标签名` 单独同步。快照来源文件记录的是最初建库时的状态。
-
-沿用上游 MIT 许可证，见 [LICENSE](LICENSE)。提交作者暂设为 `Codex <codex@localhost>`，只影响此仓库；可用 `git config --local user.name` 和 `git config --local user.email` 改为自己的提交身份。
+2026-10-09 的维护历史、原有标签和修复记录继续保留，见 `docs/version-history.json`。该文件记录历史快照，不代表本版当前生成文件的哈希；当前安装文件以 `version-info.json` 和 `checksums.json` 为准。
