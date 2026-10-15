@@ -1,4 +1,19 @@
 /* Adapter to the frozen runtime. No extra polling or automatic message publishing. */
+async function BHExtractResume(file) {
+  let info;
+  const reload = '请在 edge://extensions 重新加载本扩展，再刷新 BOSS 页面，然后重新导入。';
+  try { info = await iu.contentScriptTest('boss-helper:capabilities:v1'); }
+  catch (reason) { throw Error('简历导入的扩展连接不可用。' + reload + '\n' + String(reason?.message || reason)); }
+  if (info?.version !== BHProject.version || !Array.isArray(info?.capabilities) || !info.capabilities.includes('resumeImport'))
+    throw Error('页面与扩展版本不一致（页面 ' + BHProject.version + '，扩展 ' + (info?.version || '旧版') + '）。' + reload);
+  try { return await iu.extractResume(file); }
+  catch (reason) {
+    if (/Bridge method unavailable|Cannot read properties of undefined \(reading ['"]apply['"]\)/.test(String(reason?.message || reason)))
+      throw Error('简历导入接口未就绪。' + reload);
+    throw reason;
+  }
+}
+
 function BHAssistantAccount(helper) {
   const page = window._PAGE || {};
   return String(page.uid || page.userId || helper.geek?.msgBuilder?.config?.userId || page.encryptUserId || '');

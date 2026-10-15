@@ -22,13 +22,14 @@ function build(outDir = root) {
   const outputs=new Map();
   for(const [input,output] of [['vendor/boss.template.js','boss.js'],['vendor/background.template.js','background.js'],['vendor/content.template.js','content-scripts/content.js']]) {
     let text=replaceOnce(read(input),'/*@@BRIDGE_HEARTBEAT@@*/',read('src/features/bridge-heartbeat.js').trimEnd());
+    text=replaceOnce(text,'await(i.path?.reduce((e,t)=>e[t],e)).apply(e,r||[])','await BHBridgeApply(e,i.path,r,n.namespace)');
     if(output==='boss.js') {
       text=replaceOnce(text,'/*@@WORKFLOW_SAFETY@@*/',read('src/features/workflow-safety.js').trimEnd());
       text=personalizeBoss(text,{projectConfig,versionPanel:read('src/ui/version-panel.js'),appMenu:read('src/ui/app-menu.js'),
         assistantModules:['resume-prompts','reply-assistant','assistant-runtime'].map(name=>read('src/features/'+name+'.js')).join('\n'),
         assistantPanel:read('src/ui/assistant-panel.js')});
     }
-    if(output==='content-scripts/content.js') text=personalizeContent(text,read('src/features/resume-files.js'));
+    if(output==='content-scripts/content.js') text=personalizeContent(text,read('src/features/resume-files.js'),project);
     text=text.replaceAll('[BOSS Helper]', '['+project.name+']');
     text='/*! '+project.name+' v'+project.version+' | Personal maintenance: '+project.maintainer+' | See LICENSE and NOTICE */\n'+text;
     new vm.Script(text,{filename:output});

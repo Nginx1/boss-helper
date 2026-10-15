@@ -32,4 +32,12 @@ function BHBridgeHeartbeat(transport, options, types, actors, makeId) {
     } catch (error) { complete(error); }
   });
 }
+function BHBridgeApply(provider, path, args, namespace) {
+  const method = Array.isArray(path) ? path.join('.') : '';
+  const handler = Array.isArray(path) && path.length ? path.reduce((value, key) => value?.[key], provider) : undefined;
+  if (typeof handler !== 'function') throw Error(
+    `Bridge method unavailable: ${namespace}:${method || '(empty)'}. 扩展接口不可用，请在扩展管理页重新加载本扩展，再刷新 BOSS 页面。`
+  );
+  return Reflect.apply(handler, provider, args || []);
+}
 /* end bh-bridge-recovery */

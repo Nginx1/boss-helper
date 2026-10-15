@@ -44,7 +44,7 @@ I({
         let binary = '';
         for (let index = 0; index < bytes.length; index += 32768)
           binary += String.fromCharCode(...bytes.subarray(index, index + 32768));
-        const result = await iu.extractResume({name: file.name, data: btoa(binary)});
+        const result = await BHExtractResume({name: file.name, data: btoa(binary)});
         if (!alive) return;
         resume.value = result.text; invalidate();
         status.value = '已在本地提取 ' + result.format + (result.pages ? '，共 ' + result.pages + ' 页' : '') +

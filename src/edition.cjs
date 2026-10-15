@@ -42,8 +42,11 @@ function personalizeBoss(input, {projectConfig, versionPanel, appMenu, assistant
   return output;
 }
 
-function personalizeContent(input, resumeFiles) {
+function personalizeContent(input, resumeFiles, project) {
   let output = replaceOnce(input, 'var content=(function(){', 'var content=(function(){\n' + resumeFiles + '\n');
+  output = replaceOnce(output, 'async contentScriptTest(e){',
+    'async contentScriptTest(e){if(e===`boss-helper:capabilities:v1`)return ' +
+    JSON.stringify({version: project.version, capabilities: ['resumeImport']}) + ';');
   return replaceOnce(output, 'async storageGet(e,t){', 'async extractResume(e){return BHRReadResume(e)}async storageGet(e,t){');
 }
 

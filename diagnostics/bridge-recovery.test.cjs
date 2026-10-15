@@ -94,9 +94,50 @@ async function testProtocol() {
     caller = bus('caller', m => server.deliver(m)); server = bus('provider', m => caller.deliver(m));
     const [provide, consume] = workingCtx.createRPC(() => ({echo: async text => text + ':ok'}), {namespace: 'rpc'});
     provide(server);
-    assert.equal(await consume(caller).echo('offline'), 'offline:ok');
+    const ready = consume(caller);
+    assert.equal(await ready.echo('offline'), 'offline:ok');
+    await assert.rejects(ready.missing(), /Bridge method unavailable: rpc:missing/);
+    await assert.rejects(ready.missing.nested(), /Bridge method unavailable: rpc:missing.nested/);
     assert.equal(caller.listeners.size, 0); assert.equal(working.size(), 0);
   }
+}
+async function testResumeProtocolVersions() {
+  const project = JSON.parse(read('src/project.json'));
+  const legacy = read('vendor/content.template.js');
+  const timer = clock(), page = protocol('boss.js', timer, {BHProject: project});
+  vm.runInContext(section(boss, 'async function BHExtractResume(', 'function BHAssistantAccount('), page);
+  for (const [label, source] of [['current', sources['content-scripts/content.js']], ['legacy', legacy]]) {
+    let imports = 0;
+    const content = protocol('content-scripts/content.js', timer, {BHRReadResume: async file => {imports++; return {text: file.data};}});
+    if (label === 'legacy') vm.runInContext('var ' + section(legacy, 'f=Symbol(', ',te=class') + ';globalThis.createRPC=S;', content);
+    vm.runInContext('globalThis.ResumeProvider=' + section(source, 'we=class', '},Z=t').slice(3) + '};', content);
+    let caller, server;
+    caller = bus('page', message => server.deliver(message)); server = bus('content', message => caller.deliver(message));
+    const [provide] = content.createRPC(() => new content.ResumeProvider({}), {namespace: '__boss-helper-content__'});
+    provide(server);
+    const [, consume] = page.createRPC(() => ({}), {namespace: '__boss-helper-content__'});
+    page.iu = consume(caller);
+    if (label === 'current') {
+      assert.equal((await page.BHExtractResume({data: 'local resume'})).text, 'local resume');
+      assert.equal(imports, 1);
+      const version = project.version;
+      project.version = '999.0.0';
+      await assert.rejects(page.BHExtractResume({data: 'must not import'}), /页面与扩展版本不一致/);
+      assert.equal(imports, 1); project.version = version;
+    } else {
+      assert.equal(typeof await page.iu.contentScriptTest(), 'number', 'Legacy bridge test remains usable');
+      await assert.rejects(page.iu.extractResume({}), /Cannot read properties of undefined \(reading 'apply'\)/,
+        'Reproduce the original error using the real frozen legacy provider and RPC');
+      await assert.rejects(page.BHExtractResume({data: 'must not import'}), /版本不一致.*旧版.*重新加载.*刷新 BOSS/);
+      assert.equal(imports, 0, 'Do not invoke a missing method on an old provider');
+    }
+    assert.equal(caller.listeners.size, 0); assert.equal(timer.size(), 0);
+  }
+  page.iu = {contentScriptTest: async () => ({version: project.version, capabilities: ['resumeImport']}),
+    extractResume: async () => {throw Error("Cannot read properties of undefined (reading 'apply')");}};
+  await assert.rejects(page.BHExtractResume({}), /接口未就绪.*重新加载.*刷新 BOSS/);
+  page.iu.extractResume = async () => {throw Error('PDF 文件已加密');};
+  await assert.rejects(page.BHExtractResume({}), /^Error: PDF 文件已加密$/);
 }
 async function testRuntimeRouting() {
   const workerListeners = new Set(), tabListeners = new Set(), routes = [];
@@ -245,7 +286,7 @@ async function testRetryAndWorkflow() {
 }
 async function main() {
   Object.entries(sources).forEach(([file, source]) => new vm.Script(source, {filename: file}));
-  await testProtocol(); await testRuntimeRouting(); await testDetails(); await testRetryAndWorkflow();
-  console.log('PASS: all three scripts parse; immediate probes under 60s timer clamping, 2s delayed PONG, 10s deadline and listener cleanup, actual RPC replies, runtime acknowledgement and tab/frame routing, cached/fresh detail restoration, watcher cleanup, one retry, whole-batch stop, cancellation and platform-stop classification. All requests/messages simulated.');
+  await testProtocol(); await testResumeProtocolVersions(); await testRuntimeRouting(); await testDetails(); await testRetryAndWorkflow();
+  console.log('PASS: all three scripts parse; immediate probes under 60s timer clamping, 2s delayed PONG, 10s deadline and listener cleanup, actual RPC replies and missing-method diagnostics, reproduced legacy apply error and guarded resume import across versions, runtime acknowledgement and tab/frame routing, cached/fresh detail restoration, watcher cleanup, one retry, whole-batch stop, cancellation and platform-stop classification. All requests/messages simulated.');
 }
 main().catch(error => {console.error(error); process.exitCode = 1;});

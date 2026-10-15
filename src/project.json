@@ -2,14 +2,14 @@
   "name": "boss-helper（我的维护版）",
   "shortName": "boss-helper",
   "nameEN": "boss-helper (Personal Edition)",
-  "version": "0.7.0",
-  "versionName": "0.7.0 · 我的维护版",
+  "version": "0.7.1",
+  "versionName": "0.7.1 · 我的维护版",
   "maintainer": "Nginx1",
   "repository": "https://github.com/Nginx1/boss-helper",
   "feedback": "https://github.com/Nginx1/boss-helper/issues",
-  "branch": "personal/edge-0.7.0",
+  "branch": "personal/edge-0.7.1",
   "releaseDate": "2026-10-15",
   "description": "我的 BOSS 求职助手：简历导入生成筛选、招呼及回复提示词，收到消息后起草并人工确认回复，保留岗位筛选、两条或三条招呼与本地配置。",
   "descriptionEN": "Personal BOSS job assistant with local resume import, screening and greeting prompts, reviewable reply drafts, job filtering and local settings.",
-  "releaseNotes": "新增 PDF / DOCX / 文字简历导入，本地生成三类可预览和恢复的提示词；新增收到消息后起草、本人确认后发送的回复助手，保留原发送间隔、配置和历史修复。"
+  "releaseNotes": "修复通信接口不存在时的 apply 报错，简历导入先检查页面与扩展版本，旧脚本给出重新加载与刷新指引；保留简历、提示词及人工确认回复功能。"
 }

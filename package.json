@@ -1,6 +1,6 @@
 {
   "name": "boss-helper-personal",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "private": true,
   "description": "boss-helper（我的维护版）的可重复构建与验证工程",
   "license": "MIT",

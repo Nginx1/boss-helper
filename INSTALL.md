@@ -1,6 +1,6 @@
 # 安装与更新
 
-个人版本：boss-helper（我的维护版）0.7.0。
+个人版本：boss-helper（我的维护版）0.7.1。
 
 ## 在现有安装上更新
 
@@ -9,10 +9,12 @@
 1. 先停止正在运行的投递任务。
 2. 打开 `edge://extensions`，找到本扩展并点击“重新加载”。
 3. 刷新 BOSS 页面。
-4. 在版本信息中确认显示 0.7.0 和“我的维护版”。
+4. 在版本信息中确认显示 0.7.1 和“我的维护版”。
 5. 在岗位页的 AI 配置中打开“简历生成提示词”，或在沟通页右上角个人菜单打开“简历与提示词／回复助手”。
 
 不要同时运行旧版和个人维护版。
+
+如果简历导入提示“页面与扩展版本不一致”或曾显示 `Cannot read properties of undefined (reading 'apply')`，请按上述第 2、3 步依次操作。重新加载扩展后，已经打开的网页仍可能保留旧脚本；打开的 BOSS 标签页需要逐一刷新。
 
 ## 从安装 ZIP 新装
 
@@ -30,6 +32,6 @@ node scripts/test.cjs
 node scripts/package.cjs
 ```
 
-默认构建写入项目根目录，保持原加载路径；也可用 `node scripts/build.cjs --out dist/edge` 生成独立安装目录。打包命令生成 `dist/boss-helper-personal-0.7.0.zip`。
+默认构建写入项目根目录，保持原加载路径；也可用 `node scripts/build.cjs --out dist/edge` 生成独立安装目录。打包命令生成 `dist/boss-helper-personal-0.7.1.zip`。
 
 检查只使用模拟请求和消息，不会真实投递。
