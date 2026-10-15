@@ -15,3 +15,11 @@ originally authored by Nginx1.
 Historical baseline: local bundle 0.5.2, commit 87f5887 (2026-10-13 import).
 Its bridge, caching and multiple-greeting fixes have been preserved.
 Bundled library license banners, including Tailwind CSS, remain in the runtime.
+
+The resume text extractor includes PDF.js (pdfjs-dist 6.4.299), developed by
+Mozilla Foundation and contributors, under Apache License 2.0. Its unchanged
+compatibility modules, CMaps, standard font data and their license notices are
+vendored in third_party/pdfjs and shipped under libs/pdfjs. See the included
+LICENSE and font/CMap notices. The original package integrity and per-file
+SHA-256 values are recorded in DEPENDENCY.json. No external PDF parsing service
+is used.

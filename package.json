@@ -1,11 +1,16 @@
 {
   "name": "boss-helper-personal",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "description": "boss-helper（我的维护版）的可重复构建与验证工程",
   "license": "MIT",
-  "repository": {"type": "git", "url": "https://github.com/Nginx1/boss-helper.git"},
-  "engines": {"node": ">=18"},
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Nginx1/boss-helper.git"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  },
   "scripts": {
     "build": "node scripts/build.cjs",
     "test": "node scripts/test.cjs",

@@ -1,6 +1,7 @@
 I({
   __name: 'PersonalAppMenu',
   setup() {
+    const helper = SF();
     const toasts = Fm();
     const dialogs = RX();
     const welcomeOpen = N(false);
@@ -14,6 +15,12 @@ I({
     }, {
       label: '问题反馈',
       onSelect: () => window.open(BHProject.feedback, '_blank', 'noopener'),
+    }, {
+      label: '简历与提示词',
+      onSelect: () => BHOpenAssistant(helper, 'resume'),
+    }, {
+      label: '回复助手',
+      onSelect: () => BHOpenAssistant(helper, 'replies'),
     }]];
     async function acceptWelcome() {
       await iu.storageSet(e4, t4);
@@ -39,6 +46,7 @@ I({
                 V('p', null, '这是你的个人维护版，版本、反馈和后续维护以自己的项目仓库为准。'),
                 V('p', null, '先设置岗位筛选、AI 模型和投递上限；勾选启用后保存配置。帮助模式可查看各项说明。'),
                 V('p', null, 'AI 招呼支持两条或三条，发送与翻页使用已保存的间隔设置。可随时停止任务。'),
+                V('p', null, '可导入 PDF、DOCX 或粘贴简历，预览后应用筛选、招呼和回复提示词。回复助手只起草，需本人确认发送。'),
                 V('p', null, '更新前先停止任务，重新加载扩展后刷新 BOSS 页面。'),
                 H(OX, {to: BHProject.repository, target: '_blank'}, {
                   default: F(() => [U('打开我的项目仓库')]), _: 1,

@@ -3,7 +3,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
-const {personalizeBoss, replaceOnce} = require('../src/edition.cjs');
+const {personalizeBoss, personalizeContent, replaceOnce} = require('../src/edition.cjs');
 const {logoSVG, maskSVG, dataURI, iconPNG} = require('./icons.cjs');
 const root = path.resolve(__dirname,'..');
 const read = file => fs.readFileSync(path.join(root,file),'utf8');
@@ -24,8 +24,11 @@ function build(outDir = root) {
     let text=replaceOnce(read(input),'/*@@BRIDGE_HEARTBEAT@@*/',read('src/features/bridge-heartbeat.js').trimEnd());
     if(output==='boss.js') {
       text=replaceOnce(text,'/*@@WORKFLOW_SAFETY@@*/',read('src/features/workflow-safety.js').trimEnd());
-      text=personalizeBoss(text,{projectConfig,versionPanel:read('src/ui/version-panel.js'),appMenu:read('src/ui/app-menu.js')});
+      text=personalizeBoss(text,{projectConfig,versionPanel:read('src/ui/version-panel.js'),appMenu:read('src/ui/app-menu.js'),
+        assistantModules:['resume-prompts','reply-assistant','assistant-runtime'].map(name=>read('src/features/'+name+'.js')).join('\n'),
+        assistantPanel:read('src/ui/assistant-panel.js')});
     }
+    if(output==='content-scripts/content.js') text=personalizeContent(text,read('src/features/resume-files.js'));
     text=text.replaceAll('[BOSS Helper]', '['+project.name+']');
     text='/*! '+project.name+' v'+project.version+' | Personal maintenance: '+project.maintainer+' | See LICENSE and NOTICE */\n'+text;
     new vm.Script(text,{filename:output});
@@ -34,7 +37,15 @@ function build(outDir = root) {
   }
   const manifest=JSON.parse(read('vendor/manifest.base.json'));
   Object.assign(manifest,{version:project.version,version_name:project.versionName,homepage_url:project.repository});
+  manifest.web_accessible_resources[0].resources.push('libs/pdfjs/*');
   outputs.set('manifest.json',Buffer.from(JSON.stringify(manifest,null,2)+'\n'));
+  const pdfjs=JSON.parse(read('third_party/pdfjs/DEPENDENCY.json'));
+  for(const [file,expected] of Object.entries(pdfjs.sha256)) {
+    const bytes=fs.readFileSync(path.join(root,'third_party/pdfjs',file));
+    assert.equal(sha256(bytes),expected,'PDF dependency changed: '+file);
+    outputs.set('libs/pdfjs/'+file,bytes);
+  }
+  outputs.set('libs/pdfjs/DEPENDENCY.json',Buffer.from(read('third_party/pdfjs/DEPENDENCY.json')));
   for(const [locale,name,description] of [['zh_CN',project.name,project.description],['en',project.nameEN,project.descriptionEN]]) {
     outputs.set('_locales/'+locale+'/messages.json',Buffer.from(JSON.stringify({extName:{message:name},extDescription:{message:description}},null,2)+'\n'));
   }

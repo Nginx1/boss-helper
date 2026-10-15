@@ -45,6 +45,10 @@ async function runtimeChecks() {
   vm.runInContext(section(source,'/* Personal edition project metadata', 'var yF=class')+
     section(source,'var yF=class',',bF=Symbol()')+';',context);
   const helper=vm.runInContext('new yF()',context);
+  let workflowStops=0,assistantStops=0;
+  helper.workflow={stop(){workflowStops++;}};helper._bhAssistant={pause(){assistantStops++;}};
+  helper.stop();assert.equal(workflowStops,1);assert.equal(assistantStops,1);
+  helper.workflow=null;helper._bhAssistant=null;
   helper.initNetConf();
   assert.equal(helper.netConf.value.version,project.version);
   assert.equal(helper.netConf.value.feedback,project.feedback);
@@ -59,7 +63,7 @@ async function runtimeChecks() {
 async function uiChecks() {
   const hooks=[],opened=[],stored=new Map(),notices=[];
   const context=vm.createContext({
-    BHProject:{...project,logo:'data:image/svg+xml;base64,test'},
+    BHProject:{...project,logo:'data:image/svg+xml;base64,test'},SF:()=>({}),
     I:component=>component,R(){},V:renderNode,z:renderNode,H:renderNode,B:renderNode,F:fn=>fn,U:text=>text,
     hQ:'Modal',OX:'Link',AX:'Button',BX:'App',XZ:'Dropdown',uX:'Avatar',
     N:value=>({value}),Ai:fn=>hooks.push(fn),e4:'boss-protocol',t4:'personal-'+project.version,
@@ -94,7 +98,10 @@ async function uiChecks() {
 function generatedChecks() {
   const manifest=JSON.parse(read('manifest.json')),baseline=JSON.parse(read('vendor/manifest.base.json'));
   assert.equal(manifest.version,project.version);assert.equal(manifest.homepage_url,project.repository);
-  for(const key of ['permissions','host_permissions','web_accessible_resources','content_scripts','background']) assert.deepEqual(manifest[key],baseline[key]);
+  for(const key of ['permissions','host_permissions','content_scripts','background']) assert.deepEqual(manifest[key],baseline[key]);
+  const expectedResources=JSON.parse(JSON.stringify(baseline.web_accessible_resources));
+  expectedResources[0].resources.push('libs/pdfjs/*');
+  assert.deepEqual(manifest.web_accessible_resources,expectedResources,'Expose only the packaged PDF parser resources');
   assert.equal(JSON.parse(read('_locales/zh_CN/messages.json')).extName.message,project.name);
   assert(!/Ocyss|ocyss|68412205|net-conf\.json|reward\.png|关于&赞赏|feishu\.cn/.test(source));
   for(const name of ['_boss-helper-message_','__boss-helper-content__','appearance-conf','local:FormDataPreses']) assert(source.includes(name),'Preserve compatibility key '+name);
