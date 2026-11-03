@@ -14,6 +14,7 @@ const quiet = {info() {}, warn() {}, error() {}, debug() {}};
 const context = vm.createContext({console: quiet, TextDecoder, TextEncoder, Uint8Array, DataView, Blob,
   atob, DecompressionStream, performance, setTimeout, clearTimeout});
 vm.runInContext(slice(source, 'function BHRPlain(', 'var BHAssistantPanel=') +
+  slice(source, 'function BHAddResumeContext(', 'function BHFastAIRequest(') +
   slice(content, 'var BHRFileLimit', 'var e=(e,t)=>'), context);
 const native = value => JSON.parse(JSON.stringify(value));
 const resume = '测试求职者\n邮箱 test@example.com 手机 13800138000\n工作经历：五年 Linux 系统维护，参与服务器监控和故障处理。\n技能：Linux、Shell、监控告警。\n证书：简历没有列出额外证书。';
@@ -236,13 +237,15 @@ async function integrationChecks() {
     window: {_PAGE: {uid: 100}, addEventListener: (name, fn) => events.set(name, fn)},
     document: {getElementById: id => mounted.find(item => item.id === id), createElement: tag => ({tag}), body: {appendChild: item => mounted.push(item)},
       addEventListener: (name, fn) => events.set(name, fn), removeEventListener: name => events.delete(name)},
-    iu: {storageGet: async (key, fallback) => store.has(key) ? store.get(key) : fallback, storageSet: async (key, value) => store.set(key, value)},
+    iu: {storageGet: async (key, fallback) => store.has(key) ? store.get(key) : fallback, storageSet: async (key, value) => store.set(key, value),
+      backgroundTest: async () => ({kind: 'boss-helper-resume-plan', version: 1, resumeText: resume + '\nPython脚本与裸金属平台交付。'})},
     hr: (getter, callback, options) => {if (options?.immediate) callback(getter()); return () => {};},
     BHWaitUntil: async () => {}, BHDirectGenerate: async (config, messages) => {generated.push({config, messages}); return {text: JSON.stringify({reply: '您好，可以进一步沟通岗位职责。', confirm: []})};},
     jh: () => true, an: value => value, BHAssistantPanel: 'AssistantPanel',
     RX: () => ({create: (component, options) => ({open: () => opened.push({component, options})})}),
   });
   await context.BHAssistantStart(helper); await context.BHAssistantStart(helper);
+  assert(helper._bhLocalResume.resumeText.includes('Python脚本'));
   assert.equal(mounted.length, 0, 'Job page already has an overlay provider; avoid a second menu');
   context.BHAssistantMenu(helper, true); context.BHAssistantMenu(helper, true);
   assert.equal(mounted.length, 1); assert.equal(mounted[0].tag, 'boss-helper-menu');
@@ -253,7 +256,14 @@ async function integrationChecks() {
   const incoming = packet(1, Date.now()); client.emit('message', 'chat', new TextEncoder().encode(JSON.stringify(incoming)));
   assert.equal(sent.length, 0); assert.equal(generated.length, 0, 'Default auto drafting is off');
   await helper._bhAssistant.requestDraft('200:0', {manual: true}); assert.equal(generated.length, 1); assert.equal(sent.length, 0);
+  assert(generated[0].messages.at(-1).content.includes('Python脚本'));
   await helper._bhAssistant.confirmSend('200:0', {confirmed: true}); assert.equal(sent.length, 1); assert.equal(sent[0].metadata.uid, 200);
+  await context.BHUseInstallationResume(helper, false);
+  assert.equal(helper._bhLocalResume, null);
+  assert.equal(store.get('local:assistant-disable-installation-resume:100'), true);
+  await context.BHUseInstallationResume(helper, true);
+  assert(helper._bhLocalResume.resumeText.includes('Python脚本'));
+  assert.equal(store.get('local:assistant-disable-installation-resume:100'), false);
   events.get('input')({target: {closest: () => true}}); assert.equal(helper._bhAssistant.paused, true);
   assert(context.BHAssistantIsChat('/web/geek/chat') && !context.BHAssistantIsChat('/web/geek/jobs'));
   events.get('pagehide')(); assert.equal(client.listenerCount('message'), 0);
@@ -304,6 +314,11 @@ async function planUIChecks() {
   assert.equal(helper.conf.formData.greetingMessageCount, 2); assert.equal(helper.conf.formData.delayMessageSending, 7);
   assert.equal(assistant.profile.goals.evidenceNotes, goals.evidenceNotes);
   assert(stored.has('local:assistant-prompt-backup:ui-preset'));
+  context.iu = {storageSet: async (key, value) => stored.set(key, value)};
+  helper._bhLocalResumeAvailable = true; helper._bhLocalResume = {resumeText: resume};
+  await button('清除输入与浏览器保存的简历').props.onClick();
+  assert.equal(helper._bhLocalResume, null); assert.equal(assistant.profile, null);
+  assert.equal(stored.get('local:assistant-disable-installation-resume:100'), true, 'Clear must prevent installation data from silently returning on refresh');
 }
 
 async function main() {

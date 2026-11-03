@@ -24,7 +24,7 @@ I({
       const revision = editRevision;
       await helper._bhAssistantReady;
       if (!alive || revision !== editRevision) return;
-      const profile = assistant.profile;
+      const profile = helper._bhLocalResume ? {...assistant.profile, resumeText: helper._bhLocalResume.resumeText} : assistant.profile;
       if (profile) {
         resume.value = profile.resumeText || '';
         for (const [key, state] of Object.entries(goalState)) state.value = profile.goals?.[key] || '';
@@ -71,6 +71,7 @@ I({
     async function applyPrompts() {
       if (!checked.value || !preview.value) throw Error('请先生成提示词，并勾选已核对简历与意向。');
       await BHRApplyPrompts(helper, preview.value, Object.keys(selected.value).filter(key => selected.value[key]), storage);
+      if (helper._bhLocalResume && preview.value.resumeText !== helper._bhLocalResume.resumeText) await BHUseInstallationResume(helper, false);
       assistant.profile = {version: 1, resumeText: preview.value.resumeText, goals: preview.value.goals};
       assistant.pause('提示词已更新，请核对后继续回复辅助。');
       status.value = '选中的提示词已应用并保存。原模型、开关、筛选分数和发送间隔保持原设置。';
@@ -78,15 +79,17 @@ I({
     async function saveResume() {
       if (!checked.value) throw Error('请先核对简历内容和求职意向。');
       const profile = {version: 1, resumeText: BHRResumeText(resume.value, {redact: redact.value}), goals: goals(), savedAt: Date.now()};
+      if (helper._bhLocalResume && profile.resumeText !== helper._bhLocalResume.resumeText) await BHUseInstallationResume(helper, false);
       await storage.set(BHAssistantProfileKey(helper), profile); assistant.profile = profile;
       status.value = '已保存到本机当前 BOSS 账号；未上传简历文件。';
     }
     async function clearResume() {
       await storage.set(BHAssistantProfileKey(helper), null);
+      if (helper._bhLocalResumeAvailable) await BHUseInstallationResume(helper, false);
       assistant.profile = null; resume.value = '';
       for (const state of Object.values(goalState)) state.value = '';
       invalidate(); assistant.pause('简历已清除，已暂停回复辅助。');
-      status.value = '已清除输入和本机保存的简历。已应用到配置的提示词仍需单独恢复或编辑。';
+      status.value = '已清除输入和浏览器保存的简历，并停用本机专属简历。安装目录原文件和已应用的提示词仍保留；提示词可单独恢复或编辑。';
     }
     async function toggleAuto(value) {
       const previous = !!helper.conf.formData.aiReply.enable;
@@ -114,6 +117,12 @@ I({
       const generated = preview.value, type = promptType.value, messages = generated?.[type];
       return [
         text('导入简历，生成适合你自己的筛选、招呼和回复提示词。所有内容先预览，再应用。'),
+        helper._bhLocalResumeAvailable ? check('使用本机专属简历作为运行时事实（优先于旧提示词）', !!helper._bhLocalResume, value => run(async () => {
+          await BHUseInstallationResume(helper, value);
+          if (value) { resume.value = helper._bhLocalResume.resumeText; invalidate(); }
+          assistant.pause('简历来源已更改，请核对后继续回复辅助。');
+          status.value = value ? '已启用本机专属简历，未更改模型和个人条件。' : '已停用本机专属简历，将使用浏览器保存的简历与当前提示词。';
+        }), busy.value || helper.workflowRunning.value) : null,
         V('input', {type: 'file', accept: '.pdf,.docx,.txt,.md,.json', disabled: busy.value, onChange: importFile, 'aria-label': '导入简历文件或求职方案'}),
         text('支持 PDF、Word（DOCX）、TXT / Markdown，文件不超过 8 MB；也可载入 boss-helper 求职方案 JSON。扫描 PDF 需先识别文字；旧 DOC 请另存为 DOCX。', true),
         V('label', {style: {display: 'block', margin: '10px 0'}}, [V('strong', null, '简历正文（可直接粘贴或修正）'),
@@ -148,7 +157,7 @@ I({
           button('恢复上一次提示词', () => run(async () => {
             await BHRRestorePrompts(helper, storage); assistant.pause('提示词已恢复，请核对后继续回复辅助。'); status.value = '已恢复当前预设上一次替换前的提示词。';
           }), busy.value || helper.workflowRunning.value),
-          button('清除简历输入和本机保存', () => run(clearResume), busy.value)]),
+          button('清除输入与浏览器保存的简历', () => run(clearResume), busy.value)]),
         text('提取与生成模板均在本机完成。应用后，实际筛选、打招呼或起草回复会把相应简历内容发送给你配置的 AI 服务。导出配置时也会包含已经应用的提示词。', true),
       ];
     }

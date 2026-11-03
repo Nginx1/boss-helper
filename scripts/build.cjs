@@ -30,6 +30,10 @@ function build(outDir = root) {
         assistantPanel:read('src/ui/assistant-panel.js')});
     }
     if(output==='content-scripts/content.js') text=personalizeContent(text,read('src/features/resume-files.js'),project);
+    if(output==='background.js') {
+      text=replaceOnce(text,'var background=(function(){','var background=(function(){\n'+read('src/features/local-resume.js')+'\n');
+      text=replaceOnce(text,'async backgroundTest(e){','async backgroundTest(e){if(e===`boss-helper:local-resume:v1`)return BHLoadLocalResume();');
+    }
     text=text.replaceAll('[BOSS Helper]', '['+project.name+']');
     text='/*! '+project.name+' v'+project.version+' | Personal maintenance: '+project.maintainer+' | See LICENSE and NOTICE */\n'+text;
     new vm.Script(text,{filename:output});

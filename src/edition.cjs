@@ -22,6 +22,7 @@ function personalizeBoss(input, {projectConfig, versionPanel, appMenu, assistant
   output = replaceSection(output, 'Sse=I({__name:`AppMenu`', ',Cse=`', 'Sse=' + appMenu.trim());
   output = replaceOnce(output, 'xF=`0.5.2`', 'xF=BHProject.version');
   output = replaceOnce(output, 't4=`2026/05/24`', 't4=`personal-`+BHProject.version');
+  output = replaceOnce(output, 'items:[`gpt-4o`,`gpt-5.4`,`deepseek-chat`', 'items:[`gpt-4o`,`gpt-5.4`,`deepseek-flash`,`deepseek-chat`');
   output = replaceOnce(output, 'M(P(Rm).hideHeader?`Helper`:`Boss-Helper`)', 'M(P(Rm).hideHeader?BHProject.shortName:BHProject.name)');
   output = replaceOnce(output, 't.value=`https://onlinecalculator.cc/public/favicon.svg`', 't.value=BHProject.maskIcon');
   output = replaceSection(output, 'n[14]||=V(`div`,null,[U(` 使用 {{}}', ',V(`div`,b0,',
@@ -30,15 +31,15 @@ function personalizeBoss(input, {projectConfig, versionPanel, appMenu, assistant
   output = replaceSection(output, 'function hh(e){', 'async function gh(', 'function hh(e){return BHReadFiltering(e)}');
   output = replaceOnce(output,
     'let{message:n,rating:r}=hh(await e.helper.chatModel.chat(`filtering`,t).then(e=>e.text));if(r<',
-    'let BHAssessment=hh(await e.helper.chatModel.chat(`filtering`,t).then(e=>e.text));if(BHAssessment.requiresReview)return xh.skip('+JSON.stringify('待人工确认（非不匹配）\n')+'+BHAssessment.message);let{message:n,rating:r}=BHAssessment;if(r<');
+    'let BHAssessment=hh(await e.helper.chatModel.chat(`filtering`,t).then(e=>e.text));if(BHAssessment.requiresReview)return xh.skip('+JSON.stringify('待人工确认（评分异常）\n')+'+BHAssessment.message);if(BHAssessment.res.unknown.length)(e.log??e.helper.logs)?.info(`AI筛选待核实提示：`+t.jobData.jobName,...BHAssessment.res.unknown);let{message:n,rating:r}=BHAssessment;if(r<');
   output = replaceOnce(output, 'e.bhStopReason===`communication`?`扩展通信中断`:`平台保护停止`',
     'e.bhStopReason===`communication`?`扩展通信中断`:e.bhStopReason===`ai`?`AI服务停止`:`平台保护停止`');
   output = replaceOnce(output, 'async function BHDirectGenerate(e,t,{timeout:n=9e4,maxOutputTokens:r=8000}={})',
-    'async function BHDirectGenerate(e,t,{timeout:n=9e4,maxOutputTokens:r=8000,signal:BHSignal}={})');
+    'async function BHDirectGenerate(e,t,{timeout:n=9e4,maxOutputTokens:r=8000,signal:BHSignal,fast:BHFast=!1}={})');
   output = replaceOnce(output, 'signal:AbortSignal.timeout(n)',
     'signal:BHSignal?AbortSignal.any([AbortSignal.timeout(n),BHSignal]):AbortSignal.timeout(n)');
   output = replaceOnce(output, 'typeof l==`object`&&l&&Object.assign(c,l);let d=e.advanced?.extra_headers',
-    'typeof l==`object`&&l&&Object.assign(c,l);BHLimitAIOutput(c,i,r);let d=e.advanced?.extra_headers');
+    'typeof l==`object`&&l&&Object.assign(c,l);BHLimitAIOutput(c,i,r);BHFastAIRequest(c,e,i,BHFast);let d=e.advanced?.extra_headers');
   output = replaceOnce(output, 'if(!h&&g){let e=String(g).match(/\\{[\\s\\S]*\\}/);e&&(h=e[0])}',
     'if(m.choices?.[0]?.finish_reason===`length`||m.status===`incomplete`)throw Error(`AI输出被截断，请检查模型配置或缩短提示词；未使用推理草稿代替最终结果`);');
   output = replaceOnce(output, 'async onMount(t){t||=this.rootVue.$route.path;',

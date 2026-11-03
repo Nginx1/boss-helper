@@ -12,3 +12,6 @@ logs/
 .DS_Store
 Thumbs.db
 dist/
+
+# Installation-local resume data; never commit or include in public packages.
+/private/

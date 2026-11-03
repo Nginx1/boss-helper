@@ -29,6 +29,26 @@ function BHAssistantProfileKey(helper) {
   return 'local:assistant-resume-v1:' + account;
 }
 
+function BHInstallationResumeKey(helper) {
+  const account = BHAssistantAccount(helper);
+  if (!account) throw Error('请登录后设置本机专属简历。');
+  return 'local:assistant-disable-installation-resume:' + account;
+}
+
+async function BHUseInstallationResume(helper, enabled) {
+  const account = BHAssistantAccount(helper), key = BHInstallationResumeKey(helper);
+  let next = null;
+  if (enabled) {
+    const value = await iu.backgroundTest('boss-helper:local-resume:v1');
+    if (value?.kind !== 'boss-helper-resume-plan') throw Error('当前安装没有可用的本机专属简历。');
+    next = {resumeText: BHRResumeText(value.resumeText)};
+  }
+  if (BHAssistantAccount(helper) !== account) throw Error('账号已变化，请重新核对简历。');
+  await iu.storageSet(key, !enabled);
+  if (BHAssistantAccount(helper) !== account) throw Error('账号已变化，请重新核对简历。');
+  helper._bhLocalResume = next;
+}
+
 function BHGetAssistant(helper) {
   if (helper._bhAssistant) return helper._bhAssistant;
   const assistant = new BHRReplyAssistant({
@@ -39,7 +59,7 @@ function BHGetAssistant(helper) {
     policyStamp: () => {
       const form = helper.conf.formData, profile = helper._bhAssistant?.profile;
       return JSON.stringify([helper.conf.formDataKey?.(), form.aiReply?.prompt, form.aiReply?.model,
-        form.aiGreeting?.model, form.aiFiltering?.model, profile?.resumeText, profile?.goals]);
+        form.aiGreeting?.model, form.aiFiltering?.model, profile?.resumeText, profile?.goals, helper._bhLocalResume?.resumeText]);
     },
     deliveryRunning: () => !!helper.workflowRunning?.value,
     model: () => {
@@ -55,7 +75,7 @@ function BHGetAssistant(helper) {
       }
       return {};
     },
-    generate: (config, messages) => BHDirectGenerate(config, messages, {
+    generate: (config, messages) => BHDirectGenerate(config, BHAddResumeContext(messages, helper), {
       timeout: Math.max(30000, Math.min(Number(config.other?.timeout) || 180000, 180000)), maxOutputTokens: 1800,
     }),
     wait: async cancelled => {
@@ -124,6 +144,16 @@ async function BHAssistantStart(helper) {
   helper._bhAssistantReady = (async () => {
     await helper.conf.confInit(); await helper.models.initModel();
     const assistant = BHGetAssistant(helper);
+    try {
+      const local = await iu.backgroundTest('boss-helper:local-resume:v1');
+      if (local?.kind === 'boss-helper-resume-plan') {
+        helper._bhLocalResumeAvailable = true;
+        if (!await iu.storageGet(BHInstallationResumeKey(helper), false)) {
+          helper._bhLocalResume = {resumeText: BHRResumeText(local.resumeText)};
+          helper.logs?.info('本机简历上下文已加载', `${helper._bhLocalResume.resumeText.length}字符；仅作为运行时事实，不覆盖模型、开关或个人条件`);
+        }
+      }
+    } catch { /* Old workers and public packages can continue with saved prompt data. */ }
     try { assistant.profile = await iu.storageGet(BHAssistantProfileKey(helper), null); }
     catch { assistant.profile = null; }
     const stopAuto = hr(() => !!helper.conf.formData.aiReply?.enable, value => assistant.setAutoEnabled(value), {immediate: true});
