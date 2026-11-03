@@ -3,7 +3,7 @@ class BHSafetyStopError extends Error {
   constructor(message, reason = "platform") {
     super(message);
     this.bhStopReason = reason;
-    this.name = reason === "communication" ? "扩展通信中断" : reason === "cancelled" ? "任务已停止" : "平台保护停止";
+    this.name = reason === "communication" ? "扩展通信中断" : reason === "cancelled" ? "任务已停止" : reason === "ai" ? "AI服务停止" : "平台保护停止";
     this.bhStopAll = true;
   }
 }
@@ -113,7 +113,7 @@ function BHParseGreetingTexts(text, count) {
 /* end bh-multi-greeting helpers */
 
 function BHIsBridgeUnavailable(error) {
-  return /Provider unavailable|heartbeat check timeout|Could not establish connection|Receiving end does not exist|Extension context invalidated|message (?:port|channel).{0,30}closed|Extension bridge request failed/i.test(String(error?.message || error));
+  return /Provider unavailable|heartbeat check timeout|Could not establish connection|Receiving end does not exist|Extension context invalidated|message (?:port|channel).{0,30}closed|Extension bridge request failed|Bridge method unavailable/i.test(String(error?.message || error));
 }
 
 function BHBridgeStop(error) {
@@ -262,37 +262,137 @@ function BHAICacheWrite(cache, key, result) {
   } catch { /* Cache failure must not interrupt a valid response. */ }
 }
 
+function BHBuildFilteringPrompt(messages) {
+  return [...messages, {role: 'system', content:
+    '本次筛选校验规则（更新旧模板的评分方式，保留个人事实与明确意向）：' +
+    '简历未写、未证明或技能证据不足只代表未知，不等于本人不会；即使JD写必须/熟练/精通，也不能据此扣分。' +
+    '岗位明确的关键硬性要求尚需本人核实，放入unknown，不判定不合格或自动通过。可迁移技能可说明相关性，不能声称已掌握同一品牌产品。' +
+    'negative只列有双方明确事实依据的冲突，不能用未知能力扣分；positive按职责30、技能30、相关项目20、层级10、明确意向10五个维度评分，每个维度最多一项，总计不超过100。' +
+    '只输出JSON：{"negative":[{"reason":"明确冲突及依据","score":20}],"positive":[{"reason":"匹配证据","score":20}],"unknown":["关键硬性要求待本人核实"]}。' +
+    'negative最多3项、positive最多5项、unknown最多4项，每项理由不超过45字；无项目用空数组。不要输出思考、Markdown或复述整份简历。'}];
+}
+
+function BHLimitAIOutput(body, responses, limit) {
+  const key = responses ? 'max_output_tokens' : Object.prototype.hasOwnProperty.call(body, 'max_completion_tokens') ? 'max_completion_tokens' : 'max_tokens';
+  const requested = Number(body[key]);
+  body[key] = Number.isFinite(requested) && Math.floor(requested) > 0 ? Math.min(Math.floor(requested), limit) : limit;
+  if (!responses && key === 'max_completion_tokens') delete body.max_tokens;
+}
+
+function BHReadFiltering(input) {
+  const invalid = () => Error('AI筛选返回格式无效：需要合法的评分JSON、正整数分数和简短理由');
+  let parsed = input;
+  if (typeof input === 'string') {
+    try { parsed = JSON.parse(input.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '')); }
+    catch { throw invalid(); }
+  }
+  if (!parsed || !Array.isArray(parsed.negative) || !Array.isArray(parsed.positive) ||
+      parsed.negative.length > 30 || parsed.positive.length > 30 ||
+      (parsed.unknown != null && (!Array.isArray(parsed.unknown) || parsed.unknown.length > 12))) throw invalid();
+  const review = [], notes = new Set();
+  const addReview = reason => { if (!notes.has(reason)) { notes.add(reason); review.push(reason); } };
+  for (const item of parsed.unknown || []) {
+    const reason = typeof item === 'string' ? item.trim() : typeof item?.reason === 'string' ? item.reason.trim() : '';
+    if (!reason || reason.length > 500) throw invalid();
+    addReview(reason);
+  }
+  const missing = /未(?:能)?(?:证明|体现|提及|写明|说明|证实|提供)|没有(?:证据|提供|证明|提及)|缺乏.{0,8}证据|证据(?:不足|缺失)|尚未确认|无法确认|待(?:核实|确认)|not (?:proven|demonstrated|specified|mentioned|documented)|no evidence|unverified/i;
+  const normalize = (items, negative) => {
+    const seen = new Set(), result = [];
+    for (const item of items) {
+      const reason = typeof item?.reason === 'string' ? item.reason.trim() : '';
+      const score = Number(item?.score);
+      if (!reason || reason.length > 1000 || !Number.isSafeInteger(score) || score < 1 || score > 100) throw invalid();
+      if (negative && missing.test(reason)) { addReview(reason + '（未计扣分，需核实）'); continue; }
+      const key = reason.replace(/[\s，。！？、；：,.!?;:]/g, '').toLowerCase();
+      if (!seen.has(key)) { seen.add(key); result.push({reason, score}); }
+    }
+    return result;
+  };
+  const negative = normalize(parsed.negative, true), positive = normalize(parsed.positive, false);
+  const total = items => items.reduce((sum, item) => sum + item.score, 0);
+  const rawPositive = total(positive), rawNegative = total(negative);
+  if (rawPositive > 100 || rawNegative > 100) addReview('AI评分总额超出100分上限，需人工核对，未自动放行');
+  const data = {
+    negative: {score: Math.min(100, rawNegative), rawScore: rawNegative, reason: negative.map(item => `\n${item.reason}/(${item.score}分)`).join('')},
+    positive: {score: Math.min(100, rawPositive), rawScore: rawPositive, reason: positive.map(item => `\n${item.reason}/(${item.score}分)`).join('')},
+  };
+  const rating = data.positive.score - data.negative.score;
+  const requiresReview = review.length > 0;
+  const message = `分数${rating}${requiresReview ? '（仅供参考，待人工确认）' : ''}\n消极:${data.negative.reason}\n\n积极:${data.positive.reason}` +
+    (requiresReview ? '\n\n待核实（不是不具备）：\n' + review.join('\n') : '');
+  return {res: {negative, positive, unknown: review}, rating, data, message, requiresReview};
+}
+
+async function BHRunAIAttempt(owner, config, messages, options) {
+  const controller = new AbortController();
+  const deadline = performance.now() + options.timeout;
+  let timer, finished = false;
+  const cancelled = new Promise((resolve, reject) => {
+    const check = () => {
+      if (finished) return;
+      try {
+        BHAssertCanSend(owner.ctx);
+        if (performance.now() >= deadline) {
+          const error = Error('AI请求已达到本次时间预算'); error.name = 'TimeoutError'; throw error;
+        }
+      } catch (error) { controller.abort(error); reject(error); return; }
+      timer = setTimeout(check, Math.min(100, Math.max(1, deadline - performance.now())));
+    };
+    check();
+  });
+  try {
+    BHAssertCanSend(owner.ctx);
+    return await Promise.race([BHDirectGenerate(config, messages, {...options, signal: controller.signal}), cancelled]);
+  } finally { finished = true; clearTimeout(timer); }
+}
+
 async function BHGenerateCachedAI(owner, task, job, config, messages) {
   const greetingCount = BHGetGreetingCount(owner.ctx.conf?.formData);
   if (task === "greetings") messages = BHBuildGreetingPrompt(messages, greetingCount);
+  if (task === 'filtering') messages = BHBuildFilteringPrompt(messages);
   const started = performance.now();
+  const configured = Number(config.other?.timeout);
+  const budget = Number.isFinite(configured) && configured > 0 ? Math.min(configured, 60000) : 60000;
+  const deadline = started + budget;
   let cacheHit = false;
   try {
     const key = await BHAICacheKey(task, job.jobData.key, config, messages);
     const cached = BHAICacheRead(owner.resultCache, key);
     if (cached) {
       cacheHit = true;
+      owner.ctx.logs?.info('AI缓存命中', `${task === 'filtering' ? 'AI筛选' : 'AI招呼'}；本次未请求AI服务`);
       return cached;
     }
     const attempts = 2;
-    const timeout = Math.max(30000, Math.floor((config.other?.timeout ?? 180000) / attempts));
     for (let attempt = 1; attempt <= attempts; attempt++) {
       BHAssertCanSend(owner.ctx);
+      const timeout = Math.max(1, Math.floor(deadline - performance.now()));
+      const stage = task === 'filtering' ? 'AI筛选' : 'AI招呼';
+      owner.ctx.logs?.info('AI请求开始', `${stage}；第${attempt}次；本次预算${Math.ceil(timeout / 1000)}秒；上下文${messages.reduce((sum, item) => sum + (typeof item.content === 'string' ? item.content.length : 0), 0)}字符`);
       try {
-        let result = await BHDirectGenerate(config, messages, {timeout,
-          maxOutputTokens: task === "greetings" ? 3000 : 8000});
+        let result = await BHRunAIAttempt(owner, config, messages, {timeout,
+          maxOutputTokens: task === "greetings" ? 768 : 1600});
         if (!result?.text?.trim()) throw Error("AI返回为空");
         if (task === "filtering") hh(result.text);
         if (task === "greetings") result = {...result, text: JSON.stringify(BHParseGreetingTexts(result.text, greetingCount))};
+        owner.ctx.logs?.info('AI请求完成', `${stage}；累计${((performance.now() - started) / 1000).toFixed(1)}秒；输出${result.text.length}字符`);
         BHAICacheWrite(owner.resultCache, key, result);
         return result;
       } catch (error) {
         const bridgeUnavailable = BHIsBridgeUnavailable(error);
+        if (error?.bhStopAll) throw error;
+        const timedOut = ['TimeoutError', 'AbortError'].includes(error?.name) || /timed out|时间预算|超时/i.test(String(error?.message || error));
         const retryable = bridgeUnavailable || ["TimeoutError", "AbortError", "AI_NoOutputGeneratedError"].includes(error?.name) ||
           /timed out|failed to fetch|network|no output generated|AI返回为空|AI筛选返回格式无效|AI招呼返回格式无效|状态码:\s*(502|503|504)/i.test(String(error?.message || error));
-        if (!retryable || attempt === attempts) throw bridgeUnavailable ? BHBridgeStop(error) : error;
-        console.warn(`[BOSS Helper] AI request attempt ${attempt} failed, retrying after 15s`, error);
-        await BHWaitUntil(performance.now() + 15000, () => ["stop", "error"].includes(owner.ctx.workflow?.status?.value));
+        const wait = bridgeUnavailable ? 15000 : /返回格式无效|AI返回为空/i.test(String(error?.message || error)) ? 500 : 2000;
+        if (timedOut || !retryable || attempt === attempts || performance.now() + wait + 1000 >= deadline) {
+          if (bridgeUnavailable) throw BHBridgeStop(error);
+          const stop = new BHSafetyStopError('AI服务失败，已停止本轮，避免逐岗位重复等待：' + String(error?.message || error), 'ai');
+          stop.cause = error; throw stop;
+        }
+        owner.ctx.logs?.warn('AI请求重试', `${stage}；${wait / 1000}秒后重试一次：${String(error?.message || error)}`);
+        await BHWaitUntil(performance.now() + wait, () => ["stop", "error"].includes(owner.ctx.workflow?.status?.value));
       }
     }
   } finally {

@@ -181,7 +181,7 @@ async function testRuntimeRouting() {
 function helpers(timer, extra = {}) {
   const logs = [];
   const logger = {withContext() { return this; }, ...Object.fromEntries(['debug','info','warn','error'].map(level => [level, (...args) => logs.push({level, args})]))};
-  const ctx = vm.createContext({console: quiet, ...timer, TextEncoder, crypto: webcrypto, structuredClone,
+  const ctx = vm.createContext({console: quiet, ...timer, TextEncoder, crypto: webcrypto, structuredClone, AbortController,
     jh: () => true, Md: logger, ih: class extends Error {}, rh: class extends Error {}, th: Error,
     ...extra});
   vm.runInContext(section(boss, 'class BHSafetyStopError', 'async function BHPlatformJSON') +
@@ -257,7 +257,7 @@ async function testRetryAndWorkflow() {
   results.push(Error('AI筛选返回格式无效'));
   const originalCalls = calls.length;
   results.push(Error('AI筛选返回格式无效'));
-  await assert.rejects(ctx.BHGenerateCachedAI(owner, 'filtering', {jobData: {key: 'ai-error'}}, {}, []), error => !error.bhStopAll);
+  await assert.rejects(ctx.BHGenerateCachedAI(owner, 'filtering', {jobData: {key: 'ai-error'}}, {}, []), error => error.bhStopAll && error.bhStopReason === 'ai');
   assert.equal(calls.length, originalCalls + 2);
 
   vm.runInContext(section(boss, 'async function Eh(', 'var Dh='), ctx);
@@ -283,6 +283,9 @@ async function testRetryAndWorkflow() {
   assert(!cancelled.logs.some(log => log.args[0] === '平台保护停止'));
   const limited = await runWorkflow(new ctx.StopError('操作过于频繁'));
   assert.equal(limited.result.status, 'error'); assert(limited.logs.some(log => log.args[0] === '平台保护停止'));
+  const aiFailed = await runWorkflow(new ctx.StopError('AI服务超时', 'ai'));
+  assert(aiFailed.logs.some(log => log.args[0] === 'AI服务停止'));
+  assert(!aiFailed.logs.some(log => log.args[0] === '平台保护停止'));
 }
 async function main() {
   Object.entries(sources).forEach(([file, source]) => new vm.Script(source, {filename: file}));

@@ -1,8 +1,8 @@
 {
-  "boss.js": "8930e3c27f72cef0b4268f87d797c4dbccbb89b46a4809ebf81f2fd8b14c1066",
-  "background.js": "0d15849829193950a12fc6c2327aea77926efee4af30f779d39661264acfde69",
-  "content-scripts/content.js": "a5048f26f4c0bfb5af0aac30be4ae13cfdfde6e3558d4d36a5a7dd92b1ad69ea",
-  "manifest.json": "b3059ea0270015383f5244df909c1ab4ff3b679d91472a228838c8b5788c2f02",
+  "boss.js": "9d91d9cc9292cc09049651ead66648f0e9fbfebb76ef1856a28caa28901d127e",
+  "background.js": "7052cf8fbdb471ecc2a83bfaf10202a9991db1ff84a069b7ea3c506386448970",
+  "content-scripts/content.js": "c4d7bfd1a1625e767738bbe058a0e1c3ccf8e92a42e22e3b1ed9d166da2ca94e",
+  "manifest.json": "88bd68e613f24fcd3c48edbc48446a7e20ae273dd5bed490567b6fa5a7bf4dd1",
   "libs/pdfjs/LICENSE": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
   "libs/pdfjs/cmaps/78-EUC-H.bcmap": "d92a261336dc18b8c03a46eb4d462382d33f4338fa195d303256b2031434c874",
   "libs/pdfjs/cmaps/78-EUC-V.bcmap": "61670bebc4e4827b67230c054fd0d820d6e30c3584d02e386804e62bbedc032a",
@@ -207,6 +207,6 @@
   "LICENSE": "b90d5bb1250734edcac58497ad32700ac8db33c1388f33806b25a03fde6a4884",
   "NOTICE": "b30d00f300272a6eb871d3c0da9ea9986b36aa85a471d00392be492f712dcb14",
   "PRIVACY.md": "0bc56f5c96a1cef5c5de417dc4bfe69461b3097dcd44f2f323a67fde98626576",
-  "INSTALL.md": "d837c05a8ffe6492adc009fea103f0459245fc2d1379136f91a2f276ebb55bb1",
-  "version-info.json": "32930299d793d561711121bc7290e51ba899ec4d63455e3569d081415e5d9e8c"
+  "INSTALL.md": "2e6efc684b529a92b37a22f4944beaf745e5f59518b8ebf2d587dc865a581bf4",
+  "version-info.json": "f3b3963b37f352521a6227ac825fa8126faa0342758bb0a8e0cb29813d4a900e"
 }

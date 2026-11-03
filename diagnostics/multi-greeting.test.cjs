@@ -17,7 +17,7 @@ const waitCalls = [];
 const generationCalls = [];
 let responses = [];
 const context = vm.createContext({
-  console: {warn() {}}, TextEncoder, crypto: webcrypto, structuredClone, performance,
+  console: {warn() {}}, TextEncoder, crypto: webcrypto, structuredClone, performance, AbortController, setTimeout, clearTimeout,
   Md: {debug() {}},
   BHSafetyStopError: class extends Error { constructor(message) { super(message); this.bhStopAll = true; } },
   BHWaitUntil: async (deadline, stopped) => { waitCalls.push({deadline, stopped: stopped()}); },
@@ -94,7 +94,9 @@ async function main() {
     /AI招呼返回格式无效/);
   responses = ['FILTER_OK'];
   assert.equal((await context.BHGenerateCachedAI(owner, 'filtering', job, {}, originalPrompt)).text, 'FILTER_OK');
-  assert.equal(generationCalls.at(-1).messages.length, originalPrompt.length, 'Filtering prompt must be unchanged');
+  assert.equal(generationCalls.at(-1).messages.length, originalPrompt.length + 1, 'Append runtime scoring guards without mutating saved prompts');
+  assert.equal(JSON.stringify(originalPrompt), snapshot);
+  assert(generationCalls.at(-1).messages.at(-1).content.includes('未知'));
 
   vm.runInContext('globalThis.Sender = class {' + section('async sendMessage(e,t){', 'async onMount(') + '};' +
     'globalThis.GreetingTask = class {' + section('aiGreeting=Oh(', ';amap=Oh(') + ';};', context);

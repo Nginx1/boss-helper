@@ -27,6 +27,20 @@ function personalizeBoss(input, {projectConfig, versionPanel, appMenu, assistant
   output = replaceSection(output, 'n[14]||=V(`div`,null,[U(` 使用 {{}}', ',V(`div`,b0,',
     'n[14]||=V(`div`,null,[U(` 使用 {{}} 渲染变量，例如 {{ data.jobName }}、{{ data.salaryDesc }}、{{ data.brandName }}。两条或三条招呼在 AI 配置中选择，详细字段见项目 docs/prompt-variables.md。 `)],-1)');
   output = replaceOnce(output, 'stop(){this.workflow?.stop()}', 'stop(){this.workflow?.stop();this._bhAssistant?.pause()}');
+  output = replaceSection(output, 'function hh(e){', 'async function gh(', 'function hh(e){return BHReadFiltering(e)}');
+  output = replaceOnce(output,
+    'let{message:n,rating:r}=hh(await e.helper.chatModel.chat(`filtering`,t).then(e=>e.text));if(r<',
+    'let BHAssessment=hh(await e.helper.chatModel.chat(`filtering`,t).then(e=>e.text));if(BHAssessment.requiresReview)return xh.skip('+JSON.stringify('待人工确认（非不匹配）\n')+'+BHAssessment.message);let{message:n,rating:r}=BHAssessment;if(r<');
+  output = replaceOnce(output, 'e.bhStopReason===`communication`?`扩展通信中断`:`平台保护停止`',
+    'e.bhStopReason===`communication`?`扩展通信中断`:e.bhStopReason===`ai`?`AI服务停止`:`平台保护停止`');
+  output = replaceOnce(output, 'async function BHDirectGenerate(e,t,{timeout:n=9e4,maxOutputTokens:r=8000}={})',
+    'async function BHDirectGenerate(e,t,{timeout:n=9e4,maxOutputTokens:r=8000,signal:BHSignal}={})');
+  output = replaceOnce(output, 'signal:AbortSignal.timeout(n)',
+    'signal:BHSignal?AbortSignal.any([AbortSignal.timeout(n),BHSignal]):AbortSignal.timeout(n)');
+  output = replaceOnce(output, 'typeof l==`object`&&l&&Object.assign(c,l);let d=e.advanced?.extra_headers',
+    'typeof l==`object`&&l&&Object.assign(c,l);BHLimitAIOutput(c,i,r);let d=e.advanced?.extra_headers');
+  output = replaceOnce(output, 'if(!h&&g){let e=String(g).match(/\\{[\\s\\S]*\\}/);e&&(h=e[0])}',
+    'if(m.choices?.[0]?.finish_reason===`length`||m.status===`incomplete`)throw Error(`AI输出被截断，请检查模型配置或缩短提示词；未使用推理草稿代替最终结果`);');
   output = replaceOnce(output, 'async onMount(t){t||=this.rootVue.$route.path;',
     'async onMount(t){t||=this.rootVue.$route.path;if(BHAssistantIsChat(t)){await Hn();BHAssistantMenu(this,!0);this.initNetConf();await BHAssistantConnect(this).catch(()=>{});return}BHAssistantMenu(this,!1);');
   output = replaceOnce(output, 'this.geek=new tue,await this.geek.connect(),hr(Rm.value',
