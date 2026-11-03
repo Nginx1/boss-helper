@@ -48,6 +48,24 @@ async function promptChecks() {
   assert(prompts.filtering[0].content.includes('"negative"') && prompts.filtering[0].content.includes('"positive"'));
   assert(prompts.filtering[0].content.includes('“优先”') && prompts.filtering[0].content.includes('不扣分'));
   assert(prompts.greetings[0].content.includes('两条或三条') && prompts.greetings[0].content.includes('JSON字符串数组'));
+  const spaced = context.BHRResumeText(resume + '\n联系电话 138 - 0013 - 8000，备用 +86 139—0013—8000');
+  assert(!spaced.includes('138 -') && !spaced.includes('139—'));
+  assert.equal((spaced.match(/\[手机号已隐藏\]/g) || []).length, 3);
+  const plan = context.BHRReadPlan(JSON.stringify({kind: 'boss-helper-resume-plan', version: 1, resumeText: resume,
+    goals: {roles: '平台运维', adjacentRoles: '偏平台运维的 SRE', cautionRoles: '纯应用开发',
+      evidenceNotes: '生产6节点；个人11节点；直管2人；跨团队协调20人。', model: 'must-not-import'},
+    aiReply: {enable: true}, apiKey: 'must-not-import'}));
+  assert(!plan.resumeText.includes('test@example.com')); assert(!('aiReply' in plan)); assert(!('model' in plan.goals));
+  const tailored = context.BHRBuildPrompts(plan.resumeText, plan.goals);
+  for (const key of ['filtering', 'greetings', 'reply']) {
+    assert(tailored[key][0].content.includes('个人实验') && tailored[key][0].content.includes('直管人数'));
+    assert(tailored[key][1].content.includes('生产6节点；个人11节点'));
+  }
+  assert(tailored.filtering[0].content.includes('总计最多100分'));
+  assert(tailored.filtering[0].content.includes('最多20分，避免零散关键词'));
+  assert.throws(() => context.BHRReadPlan('{broken'), /JSON/);
+  assert.throws(() => context.BHRReadPlan(JSON.stringify({version: 1, conf: {}})), /普通配置/);
+  assert.throws(() => context.BHRReadPlan(JSON.stringify({kind: 'boss-helper-resume-plan', version: 1, resumeText: resume, goals: {notes: 'a'.repeat(2001)}})), /2000/);
   assert.throws(() => context.BHRBuildPrompts('太短'), /太少/);
   assert.throws(() => context.BHRBuildPrompts('a'.repeat(50001)), /5 万字/);
   const store = new Map(), storage = {get: async key => store.get(key), set: async (key, value) => store.set(key, native(value))};
@@ -247,8 +265,49 @@ async function integrationChecks() {
   assert.equal(failedConnection._bhAssistantConnecting, null);
 }
 
+async function planUIChecks() {
+  let ready;
+  const hooks = [], stored = new Map(), saves = [];
+  const assistant = {profile: {resumeText: resume + '旧版', goals: {roles: '旧方向'}}, threads: new Map(),
+    subscribe: () => () => {}, pause() {}};
+  const helper = {_bhAssistantReady: new Promise(resolve => {ready = resolve;}), workflowRunning: {value: false},
+    conf: {formDataKey: () => 'ui-preset', formData: {aiFiltering: {enable: true, model: 'keep', score: 42},
+      aiGreeting: {enable: true, model: 'keep'}, aiReply: {enable: false, model: 'keep'},
+      greetingMessageCount: 2, delayMessageSending: 7}, confSaving: async () => saves.push('saved')}};
+  const node = (type, props, children) => ({type, props: props || {}, children});
+  const flatten = value => value == null ? [] : typeof value === 'function' ? flatten(value()) :
+    Array.isArray(value) ? value.flatMap(flatten) : typeof value !== 'object' ? [value] :
+    'type' in value ? [value, ...flatten(value.children)] : Object.values(value).flatMap(flatten);
+  Object.assign(context, {I: value => value, N: value => ({value}), Ai: callback => hooks.push(callback), Pi() {}, R() {},
+    V: node, B: node, F: value => value, hQ: 'Modal',
+    BHGetAssistant: () => assistant, BHAssistantStorage: () => ({get: async key => stored.get(key), set: async (key, value) => stored.set(key, value)})});
+  vm.runInContext(slice(source, 'var BHAssistantPanel=', 'var yF=class'), context);
+  const render = context.BHAssistantPanel.setup({helper, startTab: 'resume'}, {emit() {}});
+  const loading = hooks[0]();
+  const nodes = () => flatten(render());
+  const fileInput = nodes().find(value => value.type === 'input' && value.props.type === 'file');
+  const goals = {roles: '平台运维', adjacentRoles: '偏运维的 SRE', cautionRoles: '纯应用开发', evidenceNotes: '生产6节点，个人11节点'};
+  const input = {files: [{name: 'plan.json', size: 1000, text: async () => JSON.stringify({kind: 'boss-helper-resume-plan', version: 1, resumeText: resume, goals})}], value: 'plan.json'};
+  await fileInput.props.onChange({target: input});
+  ready(); await loading;
+  assert.equal(input.value, ''); assert.equal(saves.length, 0, 'Import must not apply or save configuration');
+  assert(nodes().some(value => value.type === 'input' && value.props.value === '平台运维'), 'Late saved-profile load cannot overwrite imported plan');
+  const button = label => nodes().find(value => value.type === 'button' && value.children === label);
+  await button('生成三组提示词').props.onClick();
+  assert(nodes().some(value => value.type === 'textarea' && value.props.value.includes('生产6节点，个人11节点')));
+  const review = nodes().find(value => value.type === 'label' && flatten(value.children).includes('我已核对简历、求职意向和预览中的事实，确认没有编造经历。'));
+  review.children[0].props.onChange({target: {checked: true}});
+  assert.equal(button('应用选中的提示词').props.disabled, false);
+  await button('应用选中的提示词').props.onClick();
+  assert.equal(saves.length, 1); assert.equal(helper.conf.formData.aiFiltering.model, 'keep');
+  assert.equal(helper.conf.formData.aiFiltering.score, 42); assert.equal(helper.conf.formData.aiReply.enable, false);
+  assert.equal(helper.conf.formData.greetingMessageCount, 2); assert.equal(helper.conf.formData.delayMessageSending, 7);
+  assert.equal(assistant.profile.goals.evidenceNotes, goals.evidenceNotes);
+  assert(stored.has('local:assistant-prompt-backup:ui-preset'));
+}
+
 async function main() {
-  await promptChecks(); await fileChecks(); await replyChecks(); await integrationChecks();
-  console.log('PASS: local resume prompts/redaction/format, reversible preset-specific application, real TXT/DOCX/PDF extraction, corrupt/oversized/scanned input handling, draft-only incoming processing, deduplication, latest-message races, manual takeover, pause/account/delivery guards, explicit single send, lost-ack duplicate prevention, real runtime adapter wiring and teardown. No platform or AI requests.');
+  await promptChecks(); await fileChecks(); await replyChecks(); await integrationChecks(); await planUIChecks();
+  console.log('PASS: local resume prompts and spaced-phone redaction, plan schema/field isolation, role strategy and evidence boundaries, actual panel plan import/preview/application and late-profile race, reversible preset-specific application, real TXT/DOCX/PDF extraction, corrupt/oversized/scanned input handling, draft-only incoming processing, deduplication, latest-message races, manual takeover, pause/account/delivery guards, explicit single send, lost-ack duplicate prevention, real runtime adapter wiring and teardown. No platform or AI requests.');
 }
 main().catch(error => {console.error(error); process.exitCode = 1;});

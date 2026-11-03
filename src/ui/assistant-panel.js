@@ -6,10 +6,12 @@ I({
     const helper = props.helper, assistant = BHGetAssistant(helper), storage = BHAssistantStorage();
     const tab = N(props.startTab), version = N(0), busy = N(false), status = N(''), error = N('');
     const resume = N(''), roles = N(''), city = N(''), salary = N(''), notes = N('');
+    const adjacentRoles = N(''), cautionRoles = N(''), evidenceNotes = N('');
+    const goalState = {roles, adjacentRoles, cautionRoles, evidenceNotes, city, salary, notes};
     const redact = N(true), checked = N(false), preview = N(null), promptType = N('filtering');
     const selected = N({filtering: true, greetings: true, reply: true});
     const current = N(''), reviewed = N(false);
-    let reviewSignature = '', alive = true;
+    let reviewSignature = '', alive = true, editRevision = 0;
     const unsubscribe = assistant.subscribe(() => {
       if (!alive) return;
       const thread = assistant.threads.get(current.value);
@@ -19,17 +21,17 @@ I({
     });
     Pi(() => { alive = false; unsubscribe(); });
     Ai(async () => {
+      const revision = editRevision;
       await helper._bhAssistantReady;
-      if (!alive) return;
+      if (!alive || revision !== editRevision) return;
       const profile = assistant.profile;
       if (profile) {
         resume.value = profile.resumeText || '';
-        roles.value = profile.goals?.roles || ''; city.value = profile.goals?.city || '';
-        salary.value = profile.goals?.salary || ''; notes.value = profile.goals?.notes || '';
+        for (const [key, state] of Object.entries(goalState)) state.value = profile.goals?.[key] || '';
       }
     });
-    const goals = () => ({roles: roles.value, city: city.value, salary: salary.value, notes: notes.value});
-    function invalidate() { preview.value = null; checked.value = false; status.value = ''; }
+    const goals = () => BHRGoals(Object.fromEntries(Object.entries(goalState).map(([key, state]) => [key, state.value])));
+    function invalidate() { editRevision++; preview.value = null; checked.value = false; status.value = ''; }
     async function run(action) {
       if (busy.value) return;
       busy.value = true; error.value = ''; status.value = '';
@@ -40,6 +42,15 @@ I({
       const input = event.target, file = input.files?.[0]; if (!file) return;
       await run(async () => {
         if (file.size > 8 * 1024 * 1024) throw Error('简历文件不能超过 8 MB。');
+        if (/\.json$/i.test(file.name)) {
+          const plan = BHRReadPlan(await file.text());
+          if (!alive) return;
+          resume.value = plan.resumeText;
+          for (const [key, state] of Object.entries(goalState)) state.value = plan.goals[key];
+          invalidate();
+          status.value = '已载入求职方案的简历、主投方向、拓展方向和经历边界。请核对后生成提示词；尚未修改当前配置。';
+          return;
+        }
         const bytes = new Uint8Array(await file.arrayBuffer());
         let binary = '';
         for (let index = 0; index < bytes.length; index += 32768)
@@ -72,7 +83,8 @@ I({
     }
     async function clearResume() {
       await storage.set(BHAssistantProfileKey(helper), null);
-      assistant.profile = null; resume.value = ''; roles.value = ''; city.value = ''; salary.value = ''; notes.value = '';
+      assistant.profile = null; resume.value = '';
+      for (const state of Object.values(goalState)) state.value = '';
       invalidate(); assistant.pause('简历已清除，已暂停回复辅助。');
       status.value = '已清除输入和本机保存的简历。已应用到配置的提示词仍需单独恢复或编辑。';
     }
@@ -92,7 +104,7 @@ I({
     const row = children => V('div', {style: {display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', margin: '12px 0'}}, children);
     const field = (label, state, placeholder, multiline = false) => V('label', {style: {display: 'block', margin: '10px 0'}}, [
       V('span', {style: {display: 'block', marginBottom: '4px', fontWeight: '600'}}, label),
-      V(multiline ? 'textarea' : 'input', {value: state.value, placeholder, rows: multiline ? 3 : undefined, style: inputStyle,
+      V(multiline ? 'textarea' : 'input', {value: state.value, placeholder, rows: multiline ? 3 : undefined, maxLength: 2000, style: inputStyle,
         onInput: event => { state.value = event.target.value; invalidate(); }}),
     ]);
     const check = (label, value, action, disabled = false) => V('label', {style: {display: 'flex', alignItems: 'flex-start', gap: '7px', margin: '10px 0'}}, [
@@ -102,13 +114,16 @@ I({
       const generated = preview.value, type = promptType.value, messages = generated?.[type];
       return [
         text('导入简历，生成适合你自己的筛选、招呼和回复提示词。所有内容先预览，再应用。'),
-        V('input', {type: 'file', accept: '.pdf,.docx,.txt,.md', disabled: busy.value, onChange: importFile, 'aria-label': '导入简历文件'}),
-        text('支持 PDF、Word（DOCX）、TXT / Markdown，文件不超过 8 MB。扫描 PDF 需先识别文字；旧 DOC 请另存为 DOCX。', true),
+        V('input', {type: 'file', accept: '.pdf,.docx,.txt,.md,.json', disabled: busy.value, onChange: importFile, 'aria-label': '导入简历文件或求职方案'}),
+        text('支持 PDF、Word（DOCX）、TXT / Markdown，文件不超过 8 MB；也可载入 boss-helper 求职方案 JSON。扫描 PDF 需先识别文字；旧 DOC 请另存为 DOCX。', true),
         V('label', {style: {display: 'block', margin: '10px 0'}}, [V('strong', null, '简历正文（可直接粘贴或修正）'),
           V('textarea', {value: resume.value, rows: 10, placeholder: '在这里粘贴简历中的工作经历、项目、技能、学历及证书。', style: inputStyle,
             onInput: event => { resume.value = event.target.value; invalidate(); }}),
         ]),
-        field('目标岗位', roles, '例如：运维负责人、基础设施项目经理'),
+        field('主投岗位', roles, '优先争取的岗位，例如基础设施运维、系统运维'),
+        field('可拓展方向（可选）', adjacentRoles, '根据实际职责评估，例如偏平台运维的 SRE、DevOps', true),
+        field('谨慎方向（可选）', cautionRoles, '需要额外核查职责，不凭岗位标题直接过滤', true),
+        field('经历边界（可选）', evidenceNotes, '区分生产与个人实验、直管与协调人数，保留量化成果的项目范围', true),
         row([V('div', {style: {flex: '1 1 220px'}}, [field('意向城市', city, '可留空，不推测城市限制')]),
           V('div', {style: {flex: '1 1 220px'}}, [field('薪资意向', salary, '可留空；仅作为意向，不自动向 HR 承诺')])]),
         field('其他意向或明确限制', notes, '例如出差、工作形式、希望强调的经历；未填写的不补造。', true),
