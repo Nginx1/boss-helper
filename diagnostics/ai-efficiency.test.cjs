@@ -6,6 +6,8 @@ const section = (start, end) => {
 };
 const native = value => JSON.parse(JSON.stringify(value));
 const flush = async () => {for (let i = 0; i < 30; i++) await Promise.resolve();};
+const emptyText = JSON.stringify({core: {status: 'uncertain', reason: '离线测试，没有用于投递的完整职责信息'},
+  negative: [], positive: [], unknown: []});
 function clock() {
   let now = 0, serial = 0; const timers = new Map();
   return {performance: {now: () => now}, now: () => now, timers,
@@ -19,7 +21,7 @@ function clock() {
       now = target; await flush();
     }};
 }
-function fixture(generate = async () => ({text: JSON.stringify({negative: [], positive: [{reason: '相关职责有明确经历支持', score: 50}], unknown: []})})) {
+function fixture(generate = async () => ({text: emptyText})) {
   const timer = clock(), calls = [], logs = [], waits = [];
   const owner = {ctx: {conf: {formData: {}}, workflow: {status: {value: 'running'}},
     logs: Object.fromEntries(['info', 'warn'].map(level => [level, (...args) => logs.push({level, args})]))}, resultCache: new Map()};
@@ -55,14 +57,19 @@ function assessmentChecks() {
   assert.equal(explicit.rating, -10); assert.equal(explicit.requiresReview, false);
   const duplicate = context.hh({negative: [], positive: [{reason: 'Linux运维', score: 20}, {reason: 'Linux 运维。', score: 20}]});
   assert.equal(duplicate.rating, 20);
-  for (const score of [-30, 0, 1.2, 101, Infinity]) assert.throws(() => context.hh({negative: [], positive: [{reason: '错误分数', score}]}), /格式无效/);
+  for (const score of [-30, 1.2, 101, Infinity]) assert.throws(() => context.hh({negative: [], positive: [{reason: '错误分数', score}]}), /格式无效/);
+  assert.equal(context.hh({negative: [], positive: [{reason: '没有匹配分', score: 0}]}).rating, 0);
   assert.throws(() => context.hh({negative: [], positive: [], unknown: [{reason: 30}]}), /格式无效/);
   Object.assign(context, {Oh: (_name, factory) => () => ({task: factory}), yh: Error,
     xh: {skip: message => ({isSkip: true, message})}});
   vm.runInContext('globalThis.FilterTask=class {' + section('aiFiltering=Oh(', 'activityFilter=Oh(') + '};', context);
   const hints = [];
+  const matchingWindows = {core: {status: 'match', reason: '服务器职责匹配，附加产品仅待了解',
+    jobEvidence: '离线岗位', resumeEvidence: '服务器维护'}, negative: [],
+    positive: windows.res.positive.map((item, index) => ({...item, dimension: ['responsibilities', 'skills', 'projects'][index]})),
+    unknown: windows.res.unknown.map(reason => ({reason, critical: false}))};
   const helper = {conf: {formData: {aiFiltering: {enable: true, score: 10}}}, logs: {info: (...args) => hints.push(args)},
-    chatModel: {createAgent: () => true, chat: async () => ({text: JSON.stringify(windows.res)})}};
+    chatModel: {createAgent: () => true, chat: async () => ({text: JSON.stringify(matchingWindows)})}};
   return new context.FilterTask().aiFiltering().task({helper})({helper}, {jobData: {jobName: '离线岗位'}}).then(result => {
     assert.equal(result, undefined, 'Unknown product/skill alone must not block an otherwise matching role');
     assert.equal(hints.length, 1);
@@ -73,11 +80,53 @@ function assessmentChecks() {
   });
 }
 async function requestChecks() {
+  // The live helper's UI logger has info(), but no warn(). A retry must
+  // preserve the provider failure instead of replacing it with a TypeError.
+  const retryCause = Error('failed to fetch: offline provider failure');
+  const liveLogger = fixture(async () => {throw retryCause;});
+  delete liveLogger.owner.ctx.logs.warn;
+  await assert.rejects(liveLogger.context.BHGenerateCachedAI(liveLogger.owner, 'filtering', liveLogger.job, {}, []),
+    error => error.bhStopAll && error.bhStopReason === 'ai' && error.cause === retryCause);
+  assert.equal(liveLogger.calls.length, 2);
+  assert.deepEqual(liveLogger.waits, [2000]);
+  assert(liveLogger.logs.some(item => item.args[0] === 'AI请求重试' && item.args[1].includes(retryCause.message)));
+  let recoveredAttempt = 0;
+  const recoveredLogger = fixture(async () => ({text: ++recoveredAttempt === 1 ? 'invalid JSON' : emptyText}));
+  recoveredLogger.owner.ctx.logs.warn = 'not a callable method';
+  assert.equal((await recoveredLogger.context.BHGenerateCachedAI(recoveredLogger.owner, 'filtering', recoveredLogger.job, {}, [])).text,
+    emptyText);
+  assert.equal(recoveredLogger.calls.length, 2);
+  assert.deepEqual(recoveredLogger.waits, [500]);
+  const brokenLogger = fixture();
+  brokenLogger.owner.ctx.logs.info = () => {throw Error('logger unavailable');};
+  await brokenLogger.context.BHGenerateCachedAI(brokenLogger.owner, 'filtering', brokenLogger.job, {}, []);
+  assert.equal(brokenLogger.calls.length, 1);
+  // A saved 180-second timeout must permit a valid response after minute one.
+  const slowConfigured = fixture(() => new Promise(resolve => slowConfigured.timer.setTimeout(
+    () => resolve({text: emptyText}), 75000)));
+  const slowPending = slowConfigured.context.BHGenerateCachedAI(slowConfigured.owner, 'filtering', slowConfigured.job,
+    {other: {timeout: 180000}}, []);
+  const slowResult = slowPending.then(value => ({value}), error => ({error}));
+  await flush(); await slowConfigured.timer.advance(75000);
+  const slowOutcome = await slowResult;
+  assert.equal(slowOutcome.error, undefined, 'Configured timeout was shortened below the saved setting');
+  assert.equal(slowOutcome.value.text, emptyText);
+  assert.equal(slowConfigured.calls.length, 1);
+  assert.equal(slowConfigured.calls[0].options.timeout, 180000);
+  assert.equal(slowConfigured.timer.timers.size, 0);
+  const bounded = fixture(() => new Promise(() => {}));
+  const boundedPending = bounded.context.BHGenerateCachedAI(bounded.owner, 'filtering', bounded.job,
+    {other: {timeout: 600000}}, []);
+  const boundedStop = assert.rejects(boundedPending,
+    error => error.bhStopReason === 'ai' && error.cause.name === 'TimeoutError' && error.message.includes('预算180秒'));
+  await flush(); await bounded.timer.advance(180000); await boundedStop;
+  assert.equal(bounded.calls.length, 1, 'Do not restart a fully timed-out request');
+  assert.equal(bounded.timer.timers.size, 0);
   const normal = fixture();
   normal.owner.ctx._bhLocalResume = {resumeText: '本机最近确认事实：Python脚本、裸金属K8s、麒麟V10、阿里云资源运维。'};
   const saved = [{role: 'user', content: '原有个人事实与意向'}], before = JSON.stringify(saved);
   await normal.context.BHGenerateCachedAI(normal.owner, 'filtering', normal.job, {other: {timeout: 180000}}, saved);
-  assert.equal(normal.calls[0].options.timeout, 60000); assert.equal(normal.calls[0].options.maxOutputTokens, 1600);
+  assert.equal(normal.calls[0].options.timeout, 180000); assert.equal(normal.calls[0].options.maxOutputTokens, 1600);
   assert.equal(JSON.stringify(saved), before); assert(normal.calls[0].messages.at(-1).content.includes('unknown'));
   assert(normal.calls[0].messages.some(item => item.content.includes('本机最近确认事实：Python脚本')));
   const local = { _bhLocalResume: {resumeText: '明确事实：Python脚本、生产裸金属集群；直管2人，协调20人。'} };
@@ -95,7 +144,7 @@ async function requestChecks() {
   assert.equal(updatedStructured.map(item => item.content).join('').split('明确事实：Python脚本').length - 1, 1, 'Do not duplicate the complete resume in a request');
   assert(normal.logs.some(item => item.args[0] === 'AI请求完成')); assert.equal(normal.timer.timers.size, 0);
   let attempt = 0;
-  const format = fixture(async () => ({text: ++attempt === 1 ? 'not JSON' : '{"positive":[],"negative":[]}'}));
+  const format = fixture(async () => ({text: ++attempt === 1 ? 'not JSON' : emptyText}));
   await format.context.BHGenerateCachedAI(format.owner, 'filtering', format.job, {}, saved);
   assert.equal(format.calls.length, 2); assert.deepEqual(format.waits, [500]);
   const hanging = fixture(() => new Promise(() => {}));
@@ -144,7 +193,7 @@ async function adapterChecks() {
   assert.equal(payload.reasoning.effort, 'none'); assert(!('thinking' in payload));
   config.responses = false; config.base_url = 'https://third-party.invalid';
   await context.BHDirectGenerate(config, [], {fast: true}); assert.equal(payload.thinking.type, 'enabled');
-  response = {choices: [{message: {content: '', reasoning_content: '{"positive":[],"negative":[]}'}, finish_reason: 'stop'}]};
+  response = {choices: [{message: {content: '', reasoning_content: emptyText}, finish_reason: 'stop'}]};
   assert.equal((await context.BHDirectGenerate(config, [], {})).text, '', 'Reasoning is never treated as a final answer');
   response = {choices: [{message: {content: '{}'}, finish_reason: 'length'}]};
   await assert.rejects(context.BHDirectGenerate(config, [], {}), /被截断/);
@@ -169,5 +218,5 @@ async function localResumeChecks() {
 }
 (async () => {
   await assessmentChecks(); await requestChecks(); await adapterChecks(); await localResumeChecks();
-  console.log('PASS: unsupported abilities become advisory, not invented inability or automatic rejection; supplied 100-score Python/bare-metal/cloud cases proceed past filtering; bounded scoring and explicit conflict preservation; latest local resume included without overwriting settings; optional private file loader; DeepSeek official fast mode scoped to requests and known host; 60s total AI budget, 500ms format retry, cancellation within 100ms, no timeout/auth/quota retry loops, token caps and final-output checks. All AI and platform operations simulated.');
+  console.log('PASS: unsupported abilities become advisory, not invented inability or automatic rejection; supplied 100-score Python/bare-metal/cloud cases proceed past filtering; bounded scoring and explicit conflict preservation; latest local resume included without overwriting settings; optional private file loader; DeepSeek official fast mode scoped to requests and known host; saved AI timeout respected up to 180s, 60s default, 500ms format retry, cancellation within 100ms, no timeout/auth/quota retry loops, logger compatibility, token caps and final-output checks. All AI and platform operations simulated.');
 })().catch(error => {console.error(error); process.exitCode = 1;});

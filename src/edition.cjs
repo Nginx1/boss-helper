@@ -29,9 +29,14 @@ function personalizeBoss(input, {projectConfig, versionPanel, appMenu, assistant
     'n[14]||=V(`div`,null,[U(` 使用 {{}} 渲染变量，例如 {{ data.jobName }}、{{ data.salaryDesc }}、{{ data.brandName }}。两条或三条招呼在 AI 配置中选择，详细字段见项目 docs/prompt-variables.md。 `)],-1)');
   output = replaceOnce(output, 'stop(){this.workflow?.stop()}', 'stop(){this.workflow?.stop();this._bhAssistant?.pause()}');
   output = replaceSection(output, 'function hh(e){', 'async function gh(', 'function hh(e){return BHReadFiltering(e)}');
+  output = replaceSection(output, 'aiFiltering=Oh(', 'activityFilter=Oh(',
+    'aiFiltering=Oh(`AI筛选`,e=>{if(e.helper.conf.formData.aiFiltering.enable){if(!e.helper.chatModel.createAgent(e.helper.conf.formData.aiFiltering,`filtering`,{json:!0}))throw new yh(`aiFiltering.model`,`AI筛选模型未配置`);return BHScreenJob}},{state:`ai`,stateMsg:`AI筛选中`});');
   output = replaceOnce(output,
-    'let{message:n,rating:r}=hh(await e.helper.chatModel.chat(`filtering`,t).then(e=>e.text));if(r<',
-    'let BHAssessment=hh(await e.helper.chatModel.chat(`filtering`,t).then(e=>e.text));if(BHAssessment.requiresReview)return xh.skip('+JSON.stringify('待人工确认（评分异常）\n')+'+BHAssessment.message);if(BHAssessment.res.unknown.length)(e.log??e.helper.logs)?.info(`AI筛选待核实提示：`+t.jobData.jobName,...BHAssessment.res.unknown);let{message:n,rating:r}=BHAssessment;if(r<');
+    'Oh(`岗位投递`,()=>async(e,{rawData:t})=>(await uh({securityId:t.jobitem.securityId,encryptJobId:t.jobitem.encryptJobId}),{status:`success`,msg:`投递成功`}))',
+    'Oh(`岗位投递`,()=>async(e,BHJob)=>{BHAssertFiltered(e.helper,BHJob);let t=BHJob.rawData;return await uh({securityId:t.jobitem.securityId,encryptJobId:t.jobitem.encryptJobId}),{status:`success`,msg:`投递成功`}})');
+  output = replaceOnce(output,
+    'aiFiltering:{label:`AI过滤`,"data-help":`根据工作内容让gpt分析过滤，真是太稳健了，不放过任何一个垃圾`}',
+    'aiFiltering:{label:`AI筛选`,"data-help":`先判断核心职责，再按匹配分筛选；关键硬性条件未确认时跳过。通过及过滤理由可在日志查看。`}');
   output = replaceOnce(output, 'e.bhStopReason===`communication`?`扩展通信中断`:`平台保护停止`',
     'e.bhStopReason===`communication`?`扩展通信中断`:e.bhStopReason===`ai`?`AI服务停止`:`平台保护停止`');
   output = replaceOnce(output, 'async function BHDirectGenerate(e,t,{timeout:n=9e4,maxOutputTokens:r=8000}={})',
@@ -52,7 +57,7 @@ function personalizeBoss(input, {projectConfig, versionPanel, appMenu, assistant
   output = replaceOnce(output, 'data:P(n).formData.aiReply,disabled:``,onShow:',
     'data:P(n).formData.aiReply,lock:P(t).workflow?.status.value===`running`,onShow:');
   output = replaceOnce(output, 'H(I1,{label:`AI招呼消息条数`',
-    'V(`div`,{style:{display:`flex`,gap:`8px`,margin:`12px 0`}},[H(c,{onClick:()=>BHOpenAssistant(P(t),`resume`)},{default:F(()=>[U(`简历生成提示词`)]),_:1}),H(c,{onClick:()=>BHOpenAssistant(P(t),`replies`)},{default:F(()=>[U(`回复助手`)]),_:1})]),H(I1,{label:`AI招呼消息条数`');
+    'V(`div`,{style:{display:`flex`,gap:`8px`,margin:`12px 0`}},[H(c,{onClick:()=>BHOpenAssistant(P(t),`resume`)},{default:F(()=>[U(`简历生成提示词`)]),_:1}),H(c,{onClick:()=>BHOpenAssistant(P(t),`replies`)},{default:F(()=>[U(`回复助手`)]),_:1})]),V(`p`,{style:{fontSize:`13px`,margin:`8px 0`}},[U(P(n).formData.aiFiltering.enable?`AI筛选已开启，及格线 `+(P(n).formData.aiFiltering.score??20)+`/100；还须核心职责匹配，关键硬性条件已确认。低于60分的及格线较宽松，可按需要调整。`:`AI筛选已关闭：当前只执行已启用的普通筛选，请先确认再投递。`)]),H(I1,{label:`AI招呼消息条数`');
   assert(!/Ocyss|ocyss|68412205|net-conf\.json|reward\.png|关于&赞赏|greasyfork|feishu\.cn|crxsoso\.com|chromewebstore\.google|microsoftedge\.microsoft\.com|addons\.mozilla/.test(output), 'An original project entry remains in the runtime');
   return output;
 }

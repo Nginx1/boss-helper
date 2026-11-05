@@ -1,4 +1,4 @@
-/*! boss-helper（我的维护版） v0.8.2 | Personal maintenance: Nginx1 | See LICENSE and NOTICE */
+/*! boss-helper（我的维护版） v0.8.3 | Personal maintenance: Nginx1 | See LICENSE and NOTICE */
 var background=(function(){
 /* Optional installation-local data; never included in the public package. */
 async function BHLoadLocalResume() {

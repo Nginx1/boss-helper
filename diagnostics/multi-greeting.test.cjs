@@ -92,8 +92,9 @@ async function main() {
   responses = ['无效', '仍然无效'];
   await assert.rejects(context.BHGenerateCachedAI(owner, 'greetings', {jobData: {key: 'reject'}}, {}, originalPrompt),
     /AI招呼返回格式无效/);
-  responses = ['FILTER_OK'];
-  assert.equal((await context.BHGenerateCachedAI(owner, 'filtering', job, {}, originalPrompt)).text, 'FILTER_OK');
+  const filteringText = JSON.stringify({core: {status: 'uncertain', reason: '离线占位岗位没有足够职责信息'}, positive: [], negative: [], unknown: []});
+  responses = [filteringText];
+  assert.equal((await context.BHGenerateCachedAI(owner, 'filtering', job, {}, originalPrompt)).text, filteringText);
   assert.equal(generationCalls.at(-1).messages.length, originalPrompt.length + 1, 'Append runtime scoring guards without mutating saved prompts');
   assert.equal(JSON.stringify(originalPrompt), snapshot);
   assert(generationCalls.at(-1).messages.at(-1).content.includes('未知'));
@@ -139,8 +140,11 @@ async function main() {
   sender.geek.client.publish = () => { throw new Error('mock transport failure'); };
   await assert.rejects(sender.sendMessage(job, two.map(content => ({type: 'text', content}))), /mock transport failure/);
 
-  assert.equal(section('Q9=kh(', ';function nue()'), section('Q9=kh(', ';function nue()', previous),
-    'The job filtering / delivery / greeting pipeline must remain unchanged');
+  const guardedPrevious = section('Q9=kh(', ';function nue()', previous).replace(
+    'Oh(`岗位投递`,()=>async(e,{rawData:t})=>(await uh({securityId:t.jobitem.securityId,encryptJobId:t.jobitem.encryptJobId}),{status:`success`,msg:`投递成功`}))',
+    'Oh(`岗位投递`,()=>async(e,BHJob)=>{BHAssertFiltered(e.helper,BHJob);let t=BHJob.rawData;return await uh({securityId:t.jobitem.securityId,encryptJobId:t.jobitem.encryptJobId}),{status:`success`,msg:`投递成功`}})');
+  assert.equal(section('Q9=kh(', ';function nue()'), guardedPrevious,
+    'Preserve filtering / delivery / greeting order and dependencies, adding only the final screening guard');
   assert(source.includes('timeout:Math.max(1,Math.ceil(Number(t.bhTimeoutMs??18e4)/1e3))'),
     'Preserve the earlier request timeout fix');
   assert(source.includes('label:`AI招呼消息条数`'));

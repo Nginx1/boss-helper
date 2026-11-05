@@ -234,16 +234,17 @@ async function testDetails() {
 }
 async function testRetryAndWorkflow() {
   const timer = clock(), results = [], calls = [], waits = [];
+  const filteringText = JSON.stringify({core: {status: 'uncertain', reason: '离线通信测试没有完整职责信息'}, positive: [], negative: [], unknown: []});
   const {ctx, logs, logger} = helpers(timer, {BHDirectGenerate: async () => {
     calls.push('generate'); const result = results.shift(); if (result instanceof Error) throw result; return {text: result};
-  }, hh: text => assert.equal(text, 'FILTER_OK'),
+  }, hh: text => assert.equal(text, filteringText),
   BHWaitUntil: async (deadline, stopped) => waits.push({deadline, stopped: stopped()}),
   N: value => ({value}), ln: value => ({value}), K: getter => ({get value() {return getter();}}),
   ld: value => value, Th: value => value, vh: class extends Error {}, alert: () => {throw Error('Unexpected alert');}});
   const helper = {conf: {formData: {}}, workflow: {status: {value: 'running'}}};
   const owner = {ctx: helper, resultCache: new Map()};
-  results.push(Error('Provider unavailable: heartbeat check timeout 1000ms.'), 'FILTER_OK');
-  assert.equal((await ctx.BHGenerateCachedAI(owner, 'filtering', {jobData: {key: 'recovered'}}, {}, [])).text, 'FILTER_OK');
+  results.push(Error('Provider unavailable: heartbeat check timeout 1000ms.'), filteringText);
+  assert.equal((await ctx.BHGenerateCachedAI(owner, 'filtering', {jobData: {key: 'recovered'}}, {}, [])).text, filteringText);
   assert.equal(calls.length, 2); assert.equal(waits.length, 1);
   results.push(Error('Provider unavailable: heartbeat check timeout 10000ms.'), Error('Provider unavailable: heartbeat check timeout 10000ms.'));
   let communicationStop;

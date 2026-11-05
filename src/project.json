@@ -2,14 +2,14 @@
   "name": "boss-helper（我的维护版）",
   "shortName": "boss-helper",
   "nameEN": "boss-helper (Personal Edition)",
-  "version": "0.8.2",
-  "versionName": "0.8.2 · 我的维护版",
+  "version": "0.8.3",
+  "versionName": "0.8.3 · 我的维护版",
   "maintainer": "Nginx1",
   "repository": "https://github.com/Nginx1/boss-helper",
   "feedback": "https://github.com/Nginx1/boss-helper/issues",
-  "branch": "personal/edge-0.8.2",
-  "releaseDate": "2026-11-03",
+  "branch": "personal/edge-0.8.3",
+  "releaseDate": "2026-11-05",
   "description": "我的 BOSS 求职助手：简历导入生成筛选、招呼及回复提示词，收到消息后起草并人工确认回复，保留岗位筛选、两条或三条招呼与本地配置。",
   "descriptionEN": "Personal BOSS job assistant with local resume import, screening and greeting prompts, reviewable reply drafts, job filtering and local settings.",
-  "releaseNotes": "修正未知技能导致100分岗位仍被拦截的问题；支持本机专属简历运行上下文，替换旧摘要而不重复；DeepSeek官方筛选招呼启用非思考模式，保留超时停止与原发送间隔。"
+  "releaseNotes": "恢复核心职责与关键条件筛选：职责不符不投递，硬门槛待确认先跳过；兼容零分项，不合规评估转人工确认；投递前再次核验筛选通过记录，日志显示通过理由，保留模型、分数与发送间隔。"
 }

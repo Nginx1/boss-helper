@@ -1,8 +1,8 @@
 {
   "name": "boss-helper（我的维护版）",
-  "version": "0.8.2",
+  "version": "0.8.3",
   "maintainer": "Nginx1",
   "repository": "https://github.com/Nginx1/boss-helper",
-  "releaseDate": "2026-11-03",
+  "releaseDate": "2026-11-05",
   "remoteAnnouncements": false
 }

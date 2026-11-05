@@ -52,7 +52,8 @@ function BHRBuildPrompts(resume, goals = {}, options = {}) {
       '正向评分总计最多100分：目标岗位或主要职责匹配最多30分；核心技能有简历证据最多30分；项目与行业经验相关最多20分；职责层级及经验匹配最多10分；明确的个人意向匹配最多10分。每个维度最多一次，每条说明具体的简历与岗位依据，并标明生产、客户项目或个人实践的证据层级。同一技能在清单和项目重复出现不能重复计分。\n' +
       '负向评分：核心职责与求职方向明确冲突最多80分；简历明确不满足岗位必须的学历、证书或年限最多40分；明确违反本人硬性求职意向最多40分。没有证据的条件不猜测、不扣分。简历未提及不等于本人不会；“优先”“加分项”不是硬性门槛；信息缺失、正常协作和值班不得额外扣分。同一事实不重复评分。\n' +
       '若核心职责明确偏离主投和拓展方向，且谨慎方向核查后确无实质相关职责，或明确仅面向在校实习/应届且与已确认经验方向冲突，则职责匹配记0、正向总计最多20分，避免零散关键词抵消核心方向冲突。不能把未写出的技能当作此类冲突依据。最终匹配分沿用现有算法：positive 的 score 之和减去 negative 的 score 之和，不改变当前筛选阈值。\n' +
-      '只输出合法JSON：{"negative":[{"reason":"有明确依据的扣分理由","score":30}],"positive":[{"reason":"有明确依据的加分理由","score":20}]}。score必须是1至100的整数，无项目用空数组，不输出解释、代码块或其他字段。'},
+      '投递门槛：core.status为match、mismatch或uncertain，职责明确不符必须为mismatch，职责不足以确认时为uncertain，不能让工具关键词得分覆盖核心职责结论。match必须给出JD和简历各一段4至100字符原文证据。未知项不按不具备扣分；若是JD明确要求、对核心职责不可替代且无已确认相关能力的硬门槛，unknown的critical为true，待本人确认后再投；优先项、品牌及可迁移工具差异为false。\n' +
+      '只输出合法JSON：{"core":{"status":"match","reason":"主要职责判断","jobEvidence":"JD原文摘录","resumeEvidence":"简历原文摘录"},"negative":[{"reason":"有明确依据的扣分理由","score":30}],"positive":[{"dimension":"responsibilities","reason":"有明确依据的匹配理由","score":20}],"unknown":[{"reason":"待核实条件","critical":false}]}。positive的dimension仅限responsibilities、skills、projects、seniority、preferences，各项最多30、30、20、10、10分，不重复维度；score为正整数，无项目用空数组，不输出解释或代码块。'},
     {role: 'user', content: profile + job + '\n\n仅依据明确事实评分，输出规定的JSON。'}],
     greetings: [{role: 'system', content: '你代替求职者起草首次招呼。' + facts + '\n' +
       '结合具体岗位，只使用1至2个有简历依据的匹配点。没有明确匹配点时只表达兴趣，不声称已经胜任。优先呈现与职责相关的真实经历，不复述整份简历。' + strategy + '\n' +
