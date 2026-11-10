@@ -142,7 +142,9 @@ function BHAssistantIsChat(path) {
 async function BHAssistantStart(helper) {
   if (helper._bhAssistantReady) return helper._bhAssistantReady;
   helper._bhAssistantReady = (async () => {
-    await helper.conf.confInit(); await helper.models.initModel();
+    await helper.conf.confInit();
+    await BHApplyLocalSalaryChoice(helper.conf);
+    await helper.models.initModel();
     const assistant = BHGetAssistant(helper);
     try {
       const local = await iu.backgroundTest('boss-helper:local-resume:v1');

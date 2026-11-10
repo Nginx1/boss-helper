@@ -26,13 +26,13 @@ function build(outDir = root) {
     if(output==='boss.js') {
       text=replaceOnce(text,'/*@@WORKFLOW_SAFETY@@*/',read('src/features/workflow-safety.js').trimEnd());
       text=personalizeBoss(text,{projectConfig,versionPanel:read('src/ui/version-panel.js'),appMenu:read('src/ui/app-menu.js'),
-        assistantModules:['resume-prompts','reply-assistant','assistant-runtime','delivery-history'].map(name=>read('src/features/'+name+'.js')).join('\n') + '\n' + read('src/ui/delivery-history-panel.js'),
+        assistantModules:['resume-prompts','reply-assistant','assistant-runtime','salary-filter','delivery-history'].map(name=>read('src/features/'+name+'.js')).join('\n') + '\n' + read('src/ui/delivery-history-panel.js'),
         assistantPanel:read('src/ui/assistant-panel.js')});
     }
     if(output==='content-scripts/content.js') text=personalizeContent(text,read('src/features/resume-files.js'),project);
     if(output==='background.js') {
-      text=replaceOnce(text,'var background=(function(){','var background=(function(){\n'+read('src/features/local-resume.js')+'\n'+read('src/features/delivery-history-storage.js')+'\n');
-      text=replaceOnce(text,'async backgroundTest(e){','async backgroundTest(e,request){if(e===`boss-helper:delivery-history:v1`)return BHDeliveryHistoryStorage(request);if(e===`boss-helper:local-resume:v1`)return BHLoadLocalResume();');
+      text=replaceOnce(text,'var background=(function(){','var background=(function(){\n'+read('src/features/local-resume.js')+'\n'+read('src/features/local-salary-choice.js')+'\n'+read('src/features/delivery-history-storage.js')+'\n');
+      text=replaceOnce(text,'async backgroundTest(e){','async backgroundTest(e,request){if(e===`boss-helper:delivery-history:v1`)return BHDeliveryHistoryStorage(request);if(e===`boss-helper:local-resume:v1`)return BHLoadLocalResume();if(e===`boss-helper:local-salary-choice:v1`)return BHLoadLocalSalaryChoice();');
     }
     text=text.replaceAll('[BOSS Helper]', '['+project.name+']');
     text='/*! '+project.name+' v'+project.version+' | Personal maintenance: '+project.maintainer+' | See LICENSE and NOTICE */\n'+text;

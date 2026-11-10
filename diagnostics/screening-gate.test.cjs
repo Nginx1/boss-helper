@@ -143,6 +143,7 @@ async function main() {
   assert.match(fabricated.result().reason, /简历证据未能在原文中定位/);
   await continuationAndHistory();
   await storageChecks();
+  await salaryChecks();
   console.log('PASS: real workflow blocks 100-score core mismatch, uncertain responsibilities, critical unknowns, fabricated evidence, low scores, malformed responses and policy changes before delivery or greeting; suitable role with minor tool differences passes once; final delivery guard cannot reuse another job or stale approval; saved threshold preserved. All delivery and messaging endpoints are mocks.');
 }
 
@@ -233,5 +234,44 @@ async function storageChecks() {
   assert.equal((await request('recent')).rows.length, 20);
   assert.equal((await request('list', {account: 'other'})).rows.length, 0);
   console.log('PASS: isolated failures continue, success resets the streak, third failure records unprocessed jobs, confirmed and ambiguous sends are separated, history reload/export/pagination and stale-write protection.');
+}
+
+async function salaryChecks() {
+  const preset = 'local:web-geek-job-FormData';
+  const form = {salaryRange: {enable: true, value: [18, 25, false], advancedValue: {
+    M: [18000, 25000, false], D: [500, 1000, false], H: [50, 80, false]}}, unrelated: 'preserved'};
+  let saved = structuredClone(form), writes = 0;
+  const context = vm.createContext({xh: {skip: reason => ({reason})}, Oh: (_label, factory) => factory,
+    iu: {backgroundTest: async () => ({version: 1, from: [18, 25, false]}),
+      storageGet: async key => {assert.equal(key, preset); return structuredClone(saved);},
+      storageSet: async (key, value) => {assert.equal(key, preset); saved = structuredClone(value); writes++; return true;}}});
+  vm.runInContext(section('function ph(e,t)', 'function hh(e)') +
+    section('function BHSalarySkipReason(', 'const BHDeliveryRecords') +
+    'globalThis.SalaryTask=class {' + section('salaryRange=Oh(', 'companySizeRange=Oh(') + '};', context);
+  const conf = {formData: form, formDataKey: () => preset};
+  const task = new context.SalaryTask().salaryRange({helper: {conf}});
+  const check = salary => task({}, {jobData: {salary}});
+  assert.match((await check('30-60K·14薪')).reason, /18 - 25 K/);
+  await context.BHApplyLocalSalaryChoice(conf);
+  assert.equal(saved.salaryRange.onlyMinimum, true);
+  assert.equal(form.salaryRange.onlyMinimum, true);
+  assert.equal(saved.unrelated, 'preserved');
+  assert.equal(await check('30-60K·14薪'), undefined);
+  assert.equal(await check('250-300K'), undefined);
+  assert.equal(await check('15-18K'), undefined);
+  assert.match((await check('12-17K')).reason, /18 K 起/);
+  assert.equal(await check('30000-45000元/月'), undefined);
+  assert.match((await check('12000-17999元/月')).reason, /18000 元\/月 起/);
+  assert.match((await check('90-120元/时')).reason, /50 - 80/);
+  assert.equal(await check('面议'), undefined);
+  form.salaryRange.onlyMinimum = false;
+  await context.BHApplyLocalSalaryChoice(conf);
+  assert.equal(writes, 1, 'A manual opt-out must not be overwritten');
+  assert.match((await check('30-60K')).reason, /18 - 25 K/);
+  const alternate = structuredClone(form);
+  delete alternate.salaryRange.onlyMinimum;
+  await context.BHApplyLocalSalaryChoice({formData: alternate, formDataKey: () => preset + '-other'});
+  assert.equal(writes, 1, 'A different preset must not be migrated');
+  console.log('PASS: saved salary floor applies once to the matching preset; compiled workflow admits high monthly ranges, respects the floor and preserves hourly range behavior.');
 }
 main().catch(error => {console.error(error); process.exitCode = 1;});

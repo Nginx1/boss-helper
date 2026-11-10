@@ -11,6 +11,26 @@ function replaceSection(input, start, end, replacement) {
   return input.slice(0, a) + replacement + input.slice(b);
 }
 
+function personalizeSalary(input) {
+  let output = replaceSection(input, 'salaryRange=Oh(', 'companySizeRange=Oh(',
+    'salaryRange=Oh(`薪资范围`,({helper})=>{const config=helper.conf.formData.salaryRange;if(!config.enable)return;return async(_context,{jobData})=>{const reason=BHSalarySkipReason(jobData.salary,config);if(reason)return xh.skip(reason)}});');
+  output = replaceOnce(output, 'm2=I({__name:`SalaryRange`,props:{value:{},unit:{},show:',
+    'm2=I({__name:`SalaryRange`,props:{value:{},unit:{},onlyMinimum:Boolean,show:');
+  output = replaceOnce(output, 'H(a,null,{default:F(()=>[...r[2]||=[U(`-`,-1)]]),_:1}),H(i,{modelValue:t.value[1],"onUpdate:modelValue":r[1]||=e=>t.value[1]=e,min:0,step:t.step,increment:!1,decrement:!1,ui:t.ui},null,8,[`modelValue`,`step`,`ui`]),H(a,null,{default:F(()=>[U(M(t.unit),1)]),_:1}),t.show?',
+    '...(t.onlyMinimum?[]:[H(a,null,{default:F(()=>[U(`-`)]),_:1}),H(i,{modelValue:t.value[1],"onUpdate:modelValue":r[1]||=e=>t.value[1]=e,min:0,step:t.step,increment:!1,decrement:!1,ui:t.ui},null,8,[`modelValue`,`step`,`ui`])]),H(a,null,{default:F(()=>[U(M(t.unit+(t.onlyMinimum?` 起`:``)),1)]),_:1}),t.show&&!t.onlyMinimum?');
+  output = replaceOnce(output, 'H(m2,{value:P(t).formData.salaryRange.value,unit:`K`,show:!1}',
+    'H(m2,{value:P(t).formData.salaryRange.value,unit:`K`,onlyMinimum:P(t).formData.salaryRange.onlyMinimum===true,show:!1}');
+  output = replaceOnce(output, 'H(m2,{value:P(t).formData.salaryRange.value,unit:`K`,show:!0,ui:',
+    'H(m2,{value:P(t).formData.salaryRange.value,unit:`K`,onlyMinimum:P(t).formData.salaryRange.onlyMinimum===true,show:!0,ui:');
+  output = replaceOnce(output, 'g2=I({__name:`SalaryRange`,setup(e){let t=Gm(),n=N(!1),r=N();',
+    'g2=I({__name:`SalaryRange`,setup(e){let t=Gm(),n=N(!1),r=N(),BHSalaryHelper=SF();');
+  output = replaceOnce(output, 'H(c,{reference:P(r),open:P(n),placement:`top`,trigger:`click`},{content:F(()=>[V(`div`,h2,[H(s,{title:`宽松匹配:',
+    'V(`label`,{style:{display:`flex`,alignItems:`center`,gap:`5px`,marginTop:`5px`}},[V(`input`,{type:`checkbox`,checked:P(t).formData.salaryRange.onlyMinimum===true,disabled:BHSalaryHelper.workflowRunning?.value,onChange:event=>P(t).formData.salaryRange.onlyMinimum=event.target.checked}),U(`不限月薪上限`)]),H(c,{reference:P(r),open:P(n),placement:`top`,trigger:`click`},{content:F(()=>[V(`div`,h2,[H(s,{title:`宽松匹配:');
+  output = replaceOnce(output, 'H(m2,{value:P(t).formData.salaryRange.advancedValue.M,unit:`元/月`,show:!0,step:200,ui:{base:`max-w-20`}},null,8,[`value`])',
+    'P(t).formData.salaryRange.onlyMinimum===true?V(`p`,null,`月薪筛选使用 `+P(t).formData.salaryRange.value[0]+`K 起`):H(m2,{value:P(t).formData.salaryRange.advancedValue.M,unit:`元/月`,show:!0,step:200,ui:{base:`max-w-20`}},null,8,[`value`])');
+  return output;
+}
+
 function personalizeDelivery(input) {
   let output = replaceOnce(input,
     'Oh(`岗位投递`,()=>async(e,{rawData:t})=>(await uh({securityId:t.jobitem.securityId,encryptJobId:t.jobitem.encryptJobId}),{status:`success`,msg:`投递成功`}))',
@@ -105,6 +125,7 @@ function personalizeBoss(input, {projectConfig, versionPanel, appMenu, assistant
   output = replaceSection(output, 'aiFiltering=Oh(', 'activityFilter=Oh(',
     'aiFiltering=Oh(`AI筛选`,e=>{if(e.helper.conf.formData.aiFiltering.enable){if(!e.helper.chatModel.createAgent(e.helper.conf.formData.aiFiltering,`filtering`,{json:!0}))throw new yh(`aiFiltering.model`,`AI筛选模型未配置`);return BHScreenJob}},{state:`ai`,stateMsg:`AI筛选中`});');
   output = personalizeDelivery(output);
+  output = personalizeSalary(output);
   output = replaceOnce(output,
     'aiFiltering:{label:`AI过滤`,"data-help":`根据工作内容让gpt分析过滤，真是太稳健了，不放过任何一个垃圾`}',
     'aiFiltering:{label:`AI筛选`,"data-help":`先判断核心职责，再按匹配分筛选；关键硬性条件未确认时跳过。通过及过滤理由可在日志查看。`}');
