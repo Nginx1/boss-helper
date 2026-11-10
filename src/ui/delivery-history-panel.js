@@ -35,7 +35,7 @@ const BHDeliveryHistoryPanel = I({
       ...rows.value.map(row => V('details', {key: row.id}, [
         V('summary', null, `${new Date(row.at).toLocaleString()} · ${BHDeliveryLabels[row.outcome]} · ${row.title} · ${row.company}`),
         V('div', {style: {whiteSpace: 'pre-wrap'}}, [row.reason,
-          row.screening ? `\nAI ${row.screening.score} 分 / 及格线 ${row.screening.threshold} · ${row.screening.decision}` : '',
+          row.screening ? `\nAI ${row.screening.score} 分 / 及格线 ${row.screening.threshold} · ${row.screening.decision}${row.screening.fit ? ' · ' + row.screening.fit : ''}` : '',
           row.outcome === 'delivered' && row.screening ? `\n${row.screening.summary}` : '',
           row.delivery === 'confirmed' ? row.finishedAt ? `\n招呼已提交 ${row.greetingSubmitted} 条` : '\n招呼进度待确认' : ''].join('')),
       ])),

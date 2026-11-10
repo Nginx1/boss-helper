@@ -149,7 +149,7 @@ function personalizeBoss(input, {projectConfig, versionPanel, appMenu, assistant
   output = replaceOnce(output, 'data:P(n).formData.aiReply,disabled:``,onShow:',
     'data:P(n).formData.aiReply,lock:P(t).workflow?.status.value===`running`,onShow:');
   output = replaceOnce(output, 'H(I1,{label:`AI招呼消息条数`',
-    'V(`div`,{style:{display:`flex`,gap:`8px`,margin:`12px 0`}},[H(c,{onClick:()=>BHOpenAssistant(P(t),`resume`)},{default:F(()=>[U(`简历生成提示词`)]),_:1}),H(c,{onClick:()=>BHOpenAssistant(P(t),`replies`)},{default:F(()=>[U(`回复助手`)]),_:1})]),V(`p`,{style:{fontSize:`13px`,margin:`8px 0`}},[U(P(n).formData.aiFiltering.enable?`AI筛选已开启，及格线 `+(P(n).formData.aiFiltering.score??20)+`/100；还须核心职责匹配，关键硬性条件已确认。低于60分的及格线较宽松，可按需要调整。`:`AI筛选已关闭：当前只执行已启用的普通筛选，请先确认再投递。`)]),H(I1,{label:`AI招呼消息条数`');
+    'V(`div`,{style:{display:`flex`,gap:`8px`,margin:`12px 0`}},[H(c,{onClick:()=>BHOpenAssistant(P(t),`resume`)},{default:F(()=>[U(`简历生成提示词`)]),_:1}),H(c,{onClick:()=>BHOpenAssistant(P(t),`replies`)},{default:F(()=>[U(`回复助手`)]),_:1})]),V(`p`,{style:{fontSize:`13px`,margin:`8px 0`}},[U(P(n).formData.aiFiltering.enable?`AI筛选已开启，及格线 `+(P(n).formData.aiFiltering.score??20)+`/100；直接匹配和职责可迁移的岗位均可通过，关键硬性条件待核实时跳过。`:`AI筛选已关闭：当前只执行已启用的普通筛选，请先确认再投递。`)]),H(I1,{label:`AI招呼消息条数`');
   assert(!/Ocyss|ocyss|68412205|net-conf\.json|reward\.png|关于&赞赏|greasyfork|feishu\.cn|crxsoso\.com|chromewebstore\.google|microsoftedge\.microsoft\.com|addons\.mozilla/.test(output), 'An original project entry remains in the runtime');
   return output;
 }

@@ -31,9 +31,10 @@ function BHStartDeliveryRecord(job, run) {
 function BHRecordScreening(job, assessment, threshold) {
   const record = BHDeliveryRecords.get(job);
   if (!record) return;
-  const {rating, coreMismatch, requiresReview, message, reviewReason, criticalUnknown = []} = assessment;
+  const {rating, coreMismatch, requiresReview, message, reviewReason, matchType, criticalUnknown = []} = assessment;
   const decision = coreMismatch ? '职责不匹配' : requiresReview ? '待人工确认' : rating < threshold ? '分数不足' : '通过';
-  record.row.screening = {score: rating, threshold, decision, summary: BHDeliveryText(message, 5500),
+  const fit = {match: '直接匹配', transferable: '职责可迁移', mismatch: '职责不匹配', uncertain: '待核实'}[matchType] || '';
+  record.row.screening = {score: rating, threshold, decision, fit, summary: BHDeliveryText(message, 5500),
     reviewReason: BHDeliveryText(reviewReason, 100),
     criticalUnknown: criticalUnknown.slice(0, 8).map(reason => BHDeliveryText(reason, 160))};
 }
@@ -143,14 +144,14 @@ async function BHListDeliveryHistory(helper, recent) {
 
 function BHDeliveryCSV(records) {
   const columns = ['时间', '岗位', '公司', '薪资', '地点', '结果', '处理环节', '原因', 'AI分数', '及格线',
-    'AI判断', 'AI评分理由', '招呼已提交条数', '岗位描述', '批次'];
+    'AI判断', '匹配类型', 'AI评分理由', '招呼已提交条数', '岗位描述', '批次'];
   const cell = value => {
     let text = String(value ?? '');
     if (/^\s*[=+@-]|^[\t\r\n]/.test(text) && typeof value !== 'number') text = "'" + text;
     return '"' + text.replaceAll('"', '""') + '"';
   };
   const data = records.map(row => [row.at, row.title, row.company, row.salary, row.location, BHDeliveryLabels[row.outcome],
-    row.stage, row.reason, row.screening?.score, row.screening?.threshold, row.screening?.decision, row.screening?.summary,
+    row.stage, row.reason, row.screening?.score, row.screening?.threshold, row.screening?.decision, row.screening?.fit, row.screening?.summary,
     row.finishedAt ? row.greetingSubmitted : '', row.description, row.runId]);
   return '\uFEFF' + [columns, ...data].map(row => row.map(cell).join(',')).join('\r\n');
 }

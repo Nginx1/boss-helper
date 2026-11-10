@@ -123,6 +123,7 @@ async function main() {
   const legacy = read({positive: [{reason: '工具相同', score: 100}], negative: []});
   assert.equal(legacy.requiresReview, true, 'Legacy output is skipped for review, never auto-approved');
   assert.equal(read(assessment()).requiresReview, false);
+  await transferableChecks();
   const preferredSource = {...jobData, jobDescription: jobData.jobDescription + '\n有证券行业运维经验者优先考虑。'};
   const preferredUnknown = {reason: '证券行业经验未明确', critical: true, requirement: '有证券行业运维经验'};
   const preferred = read(assessment({unknown: [preferredUnknown]}), {jobData: preferredSource});
@@ -145,6 +146,30 @@ async function main() {
   await storageChecks();
   await salaryChecks();
   console.log('PASS: real workflow blocks 100-score core mismatch, uncertain responsibilities, critical unknowns, fabricated evidence, low scores, malformed responses and policy changes before delivery or greeting; suitable role with minor tool differences passes once; final delivery guard cannot reuse another job or stale approval; saved threshold preserved. All delivery and messaging endpoints are mocks.');
+}
+
+async function transferableChecks() {
+  const job = {...jobData, jobName: '基础设施交付工程师',
+    jobDescription: '负责客户Linux环境部署、监控与故障处理，并协调项目验收。'};
+  const related = assessment({core: {status: 'transferable',
+    reason: '岗位含Linux交付及运行保障，已有生产运维和故障处理经历可用于客户环境。',
+    jobEvidence: 'Linux环境部署、监控与故障处理', resumeEvidence: '监控和故障处理'},
+    positive: [{dimension: 'responsibilities', reason: '生产运行保障职责可迁移', score: 18},
+      {dimension: 'skills', reason: 'Linux、监控和排障可用于交付', score: 16}],
+    unknown: [{reason: '客户使用的虚拟化品牌未确认', critical: false}]});
+  const eligible = await fixture(related, null, {jobs: [job]});
+  await eligible.run();
+  assert.equal(eligible.calls.delivery, 1, 'A 34-point adjacent role can pass the saved 20-point threshold');
+  const record = [...eligible.saved.values()][0];
+  assert.equal(record.screening.score, 34);
+  assert.equal(record.screening.fit, '职责可迁移');
+  const options = {requireCore: true, jobData: job, resumeText: resume};
+  const read = (value, overrides = {}) => eligible.context.BHReadFiltering(value, {...options, ...overrides});
+  const withHardGate = {...related, unknown: [{reason: '必需证书待确认', critical: true}]};
+  assert.equal(read(withHardGate).reviewReason, '关键硬性条件待确认');
+  assert.equal(read(related, {resumeText: undefined}).reviewReason, '可迁移职责缺少原文');
+  assert.equal(read({...related, core: {...related.core, resumeEvidence: '主导过客户上线验收'}}).reviewReason, '匹配证据待确认');
+  console.log('PASS: a moderate-score role with supported transferable duties reaches delivery, with hard requirements and source evidence still enforced.');
 }
 
 async function continuationAndHistory() {
