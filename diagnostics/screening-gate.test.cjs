@@ -123,6 +123,24 @@ async function main() {
   const legacy = read({positive: [{reason: '工具相同', score: 100}], negative: []});
   assert.equal(legacy.requiresReview, true, 'Legacy output is skipped for review, never auto-approved');
   assert.equal(read(assessment()).requiresReview, false);
+  const preferredSource = {...jobData, jobDescription: jobData.jobDescription + '\n有证券行业运维经验者优先考虑。'};
+  const preferredUnknown = {reason: '证券行业经验未明确', critical: true, requirement: '有证券行业运维经验'};
+  const preferred = read(assessment({unknown: [preferredUnknown]}), {jobData: preferredSource});
+  assert.equal(preferred.requiresReview, false, 'The actual JD says preferred even if the model marks it critical');
+  assert.match(preferred.message, /原文标为优先项/);
+  const mixedSource = {...preferredSource, jobDescription: preferredSource.jobDescription + '\n必须具备全日制本科及以上学历。'};
+  const degree = {reason: '全日制学历待确认', critical: true, requirement: '全日制本科及以上学历'};
+  const mixed = read(assessment({unknown: [preferredUnknown, degree]}), {jobData: mixedSource});
+  assert.equal(mixed.reviewReason, '关键硬性条件待确认');
+  assert.deepEqual(Array.from(mixed.criticalUnknown), [degree.reason]);
+  const repeatedSource = {...preferredSource, jobDescription: preferredSource.jobDescription + '\n必须有证券行业运维经验。'};
+  assert.equal(read(assessment({unknown: [preferredUnknown]}), {jobData: repeatedSource}).requiresReview, true);
+  const unsupported = read(assessment({unknown: [{...degree, requirement: '有金融行业运维经验'}]}), {jobData: mixedSource});
+  assert.equal(unsupported.requiresReview, true, 'A paraphrased or missing source does not waive a critical requirement');
+  const format = read(assessment({core: {...assessment().core, jobEvidence: '维护Ｌｉｎｕｘ服务器，及Kubernetes集群',
+    resumeEvidence: '具备Linux服务器⽣产运维经历'}}));
+  assert.equal(format.requiresReview, false, 'Width, list punctuation and PDF radicals do not invalidate real evidence');
+  assert.match(fabricated.result().reason, /简历证据未能在原文中定位/);
   await continuationAndHistory();
   await storageChecks();
   console.log('PASS: real workflow blocks 100-score core mismatch, uncertain responsibilities, critical unknowns, fabricated evidence, low scores, malformed responses and policy changes before delivery or greeting; suitable role with minor tool differences passes once; final delivery guard cannot reuse another job or stale approval; saved threshold preserved. All delivery and messaging endpoints are mocks.');

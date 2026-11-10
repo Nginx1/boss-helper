@@ -2,14 +2,14 @@
   "name": "boss-helper（我的维护版）",
   "shortName": "boss-helper",
   "nameEN": "boss-helper (Personal Edition)",
-  "version": "0.8.4",
-  "versionName": "0.8.4 · 我的维护版",
+  "version": "0.8.5",
+  "versionName": "0.8.5 · 我的维护版",
   "maintainer": "Nginx1",
   "repository": "https://github.com/Nginx1/boss-helper",
   "feedback": "https://github.com/Nginx1/boss-helper/issues",
-  "branch": "personal/edge-0.8.4",
+  "branch": "personal/edge-0.8.5",
   "releaseDate": "2026-11-10",
   "description": "我的 BOSS 求职助手：简历导入生成筛选、招呼及回复提示词，收到消息后起草并人工确认回复，保留岗位筛选、两条或三条招呼与本地配置。",
   "descriptionEN": "Personal BOSS job assistant with local resume import, screening and greeting prompts, reviewable reply drafts, job filtering and local settings.",
-  "releaseNotes": "单个岗位失败后继续处理，连续三个失败才结束本轮。投递记录自动保存在本机，区分已投递、过滤、处理失败、结果待确认及未处理，可在日志页导出 CSV 或 JSON。"
+  "releaseNotes": "按岗位原文区分硬门槛与优先项，兼容证据摘录的字符格式差异，并在投递记录中单列阻断条件。"
 }

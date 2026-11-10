@@ -1,8 +1,8 @@
 # boss-helper（我的维护版）
 
-Nginx1 的 BOSS 直聘求职助手，当前个人版本 **0.8.4**。支持简历导入生成提示词、人工确认的回复草稿、岗位筛选、两条或三条招呼、配置预设和投递记录。
+Nginx1 的 BOSS 直聘求职助手，当前个人版本 **0.8.5**。支持简历导入生成提示词、人工确认的回复草稿、岗位筛选、两条或三条招呼、配置预设和投递记录。
 
-项目仓库：[Nginx1/boss-helper](https://github.com/Nginx1/boss-helper)。个人维护分支为 `personal/edge-0.8.4`，版本标签为 `v0.8.4-personal.20261110`。
+项目仓库为 [Nginx1/boss-helper](https://github.com/Nginx1/boss-helper)。个人维护分支为 `personal/edge-0.8.5`，版本标签为 `v0.8.5-personal.20261110`。
 
 本版使用自己的名称、图标、版本信息、欢迎说明和反馈入口；不读取原作者的公告、问卷或扩展商店更新。“关于&赞赏”标签页已移除。
 
@@ -40,7 +40,7 @@ node scripts/test.cjs
 node scripts/package.cjs
 ```
 
-构建默认更新根目录可加载文件。打包产生 `dist/boss-helper-personal-0.8.4.zip`。六组离线检查覆盖通信恢复、招呼、简历与回复、构建一致性、岗位筛选、连续失败控制及日志导出。请求和消息均使用模拟数据。
+构建默认更新根目录可加载文件。打包产生 `dist/boss-helper-personal-0.8.5.zip`。六组离线检查覆盖通信恢复、招呼、简历与回复、构建一致性、岗位筛选、连续失败控制及日志导出。请求和消息均使用模拟数据。
 
 ## 维护
 

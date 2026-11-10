@@ -31,9 +31,11 @@ function BHStartDeliveryRecord(job, run) {
 function BHRecordScreening(job, assessment, threshold) {
   const record = BHDeliveryRecords.get(job);
   if (!record) return;
-  const {rating, coreMismatch, requiresReview, message} = assessment;
+  const {rating, coreMismatch, requiresReview, message, reviewReason, criticalUnknown = []} = assessment;
   const decision = coreMismatch ? '职责不匹配' : requiresReview ? '待人工确认' : rating < threshold ? '分数不足' : '通过';
-  record.row.screening = {score: rating, threshold, decision, summary: BHDeliveryText(message, 5500)};
+  record.row.screening = {score: rating, threshold, decision, summary: BHDeliveryText(message, 5500),
+    reviewReason: BHDeliveryText(reviewReason, 100),
+    criticalUnknown: criticalUnknown.slice(0, 8).map(reason => BHDeliveryText(reason, 160))};
 }
 
 function BHRecordGreetingSubmission(job) {
