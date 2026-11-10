@@ -28,6 +28,7 @@ const context = vm.createContext({
     return {text: response, usage: {outputTokens: 80}};
   },
   hh: text => { assert.equal(text, 'FILTER_OK'); },
+  BHRecordGreetingSubmission() {},
   lu: async (seconds, stopped) => { waitCalls.push({seconds, stopped: stopped()}); },
   yh: Error,
 });
@@ -142,7 +143,7 @@ async function main() {
 
   const guardedPrevious = section('Q9=kh(', ';function nue()', previous).replace(
     'Oh(`岗位投递`,()=>async(e,{rawData:t})=>(await uh({securityId:t.jobitem.securityId,encryptJobId:t.jobitem.encryptJobId}),{status:`success`,msg:`投递成功`}))',
-    'Oh(`岗位投递`,()=>async(e,BHJob)=>{BHAssertFiltered(e.helper,BHJob);let t=BHJob.rawData;return await uh({securityId:t.jobitem.securityId,encryptJobId:t.jobitem.encryptJobId}),{status:`success`,msg:`投递成功`}})');
+    'Oh(`岗位投递`,()=>BHSubmitDelivery)');
   assert.equal(section('Q9=kh(', ';function nue()'), guardedPrevious,
     'Preserve filtering / delivery / greeting order and dependencies, adding only the final screening guard');
   assert(source.includes('timeout:Math.max(1,Math.ceil(Number(t.bhTimeoutMs??18e4)/1e3))'),

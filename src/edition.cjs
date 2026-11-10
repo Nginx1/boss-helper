@@ -11,6 +11,79 @@ function replaceSection(input, start, end, replacement) {
   return input.slice(0, a) + replacement + input.slice(b);
 }
 
+function personalizeDelivery(input) {
+  let output = replaceOnce(input,
+    'Oh(`岗位投递`,()=>async(e,{rawData:t})=>(await uh({securityId:t.jobitem.securityId,encryptJobId:t.jobitem.encryptJobId}),{status:`success`,msg:`投递成功`}))',
+    'Oh(`岗位投递`,()=>BHSubmitDelivery)');
+  output = replaceSection(output, 'async function uh(', 'async function dh(', `async function uh({securityId, encryptJobId}) {
+    const token = window.Cookie.get('bst');
+    if (!token) {
+      const error = new BHSafetyStopError('登录凭据已失效，请刷新 BOSS 页面');
+      error.bhDeliveryRejected = true;
+      throw error;
+    }
+    const url = new URL('https://www.zhipin.com/wapi/zpgeek/friend/add.json');
+    url.searchParams.set('securityId', securityId);
+    url.searchParams.set('jobId', encryptJobId);
+    const response = await fetch(url, {method: 'POST', headers: {Zp_token: token}, signal: AbortSignal.timeout(20000)});
+    let body;
+    try { body = await BHPlatformJSON(response); }
+    catch (error) {
+      if (error.bhStopReason === 'platform') error.bhDeliveryRejected = true;
+      throw error;
+    }
+    if (body?.code === 0) return body;
+    const error = new th(body?.zpData?.bizData?.chatRemindDialog?.content || body?.message || '平台未确认投递');
+    error.bhDeliveryRejected = body?.code != null;
+    throw error;
+  }`);
+  output = replaceOnce(output,
+    'this.geek.client.publish(`chat`,this.geek.msgBuilder.encode(r),{qos:1,retain:!0})}}async onMount',
+    'this.geek.client.publish(`chat`,this.geek.msgBuilder.encode(r),{qos:1,retain:!0});BHRecordGreetingSubmission(e)}}async onMount');
+  output = replaceOnce(output, '(e,n)=>(R(),z(`div`,{ref_key:`logsRef`,ref:t},null,512))',
+    '(e,n)=>(R(),z(`div`,null,[H(BHDeliveryHistoryPanel),V(`div`,{ref_key:`logsRef`,ref:t},null,512)]))');
+  output = replaceOnce(output, 'BHRun=(t._bhPacing??=new BHPacingController(t)),BHStop=',
+    'BHRun=(t._bhPacing??=new BHPacingController(t)),BHBatch={id:``,active:false,failures:0,seen:new Set(),settled:new Set()},BHStop=');
+  output = replaceOnce(output, 'BHRun.startJob(e);let i=()=>n.value===`stop`;',
+    'BHRun.startJob(e);BHBatch.seen.add(e.jobData.key);BHStartDeliveryRecord(e,BHBatch);let BHStage=``,BHFailure=null;let i=()=>n.value===`stop`;');
+  output = replaceOnce(output, 'for(let c of o.value){let o;try{if(i())break;',
+    'for(let c of o.value){let o;try{if(i())break;BHStage=c.label??c.id;');
+  output = replaceOnce(output, 'BHShouldStop(e)&&BHStop(e);let r=e.bhStopReason===`cancelled`;',
+    'BHFailure=e??new Error(`未知岗位错误`);const BHStopCause=BHConsecutiveFailure(BHBatch,BHFailure);if(BHStopCause)BHStop(BHStopCause);let r=e?.bhStopReason===`cancelled`;');
+  output = replaceOnce(output, 't.jobResultMaps.set(e.jobData.key,{status:`success`,msg:`投递成功`}),t.statistics.todayData.value.success++;else if(!s)',
+    't.jobResultMaps.set(e.jobData.key,{status:`success`,msg:`投递成功`});else if(!s)');
+  output = replaceOnce(output, 'BHRun.finishJob(t.jobResultMaps.get(e.jobData.key))',
+    `const BHResult=t.jobResultMaps.get(e.jobData.key);
+    BHRun.finishJob(BHResult);
+    if (!BHFailure && !i()) BHBatch.failures=0;
+    const BHDelivery=await BHFinishDeliveryRecord(t,e,BHStage,BHResult,BHFailure,i());
+    if (BHDelivery==='confirmed' || BHDelivery==='unconfirmed') BHBatch.settled.add(e.jobData.key);
+    if (BHDelivery==='confirmed' && (BHFailure || i())) {
+      t.jobResultMaps.set(e.jobData.key,{...BHResult,status:'success',msg:BHFailure?'已投递，后续处理失败':'已投递，后续处理已停止'});
+    }
+    if (BHDelivery==='unconfirmed') t.jobResultMaps.set(e.jobData.key,{...BHResult,status:'warn',msg:'投递结果待确认'});`);
+  output = replaceOnce(output, 'if(n.value===`running`)return;await u();BHRun.resetStats();let i=``;a.value=null,n.value=`running`;',
+    `if(BHBatch.active||n.value===\`running\`)return;
+    BHBatch.active=true;
+    try {
+    a.value=null;
+    await u();
+    if(a.value){n.value=\`stop\`;t.notification(a.value);return;}
+    BHBatch.id=crypto.randomUUID();BHBatch.account=String(t.uid||'');BHBatch.failures=0;BHBatch.seen.clear();
+    BHRun.resetStats();let i=\`\`;n.value=\`running\`;`);
+  output = replaceOnce(output, 'if(a===`success`||a===`warn`)continue;let o={jobData:i,',
+    'if(a===`success`||a===`warn`||BHBatch.seen.has(i.key)||BHBatch.settled.has(i.key))continue;let o={jobData:i,');
+  output = replaceOnce(output, 'await f(o,n);if(s())break}',
+    'await f(o,n);if(s())break;if(BHBatch.failures)await BHWaitUntil(performance.now()+2000,s)}');
+  output = replaceOnce(output, 'BHRun.finishRun();t.notification(i);',
+    'BHRun.finishRun();await BHSaveUnprocessedDelivery(t,BHBatch,i);t.notification(i);');
+  output = replaceOnce(output, 'Md.error(`onEnd error`,n.id,e)}}},stop:',
+    'Md.error(`onEnd error`,n.id,e)}}}finally{BHBatch.active=false}},stop:');
+  output = replaceOnce(output, '!n||n.status===`success`||(n.msg=`等待中`,n.status=`wait`)',
+    '!n||n.status===`success`||BHBatch.settled.has(e.key)||(n.msg=`等待中`,n.status=`wait`)');
+  return output;
+}
+
 function personalizeBoss(input, {projectConfig, versionPanel, appMenu, assistantModules, assistantPanel}) {
   let output = replaceSection(input, ',gF=new Map;', 'var yF=class', ';' + projectConfig + '\n' +
     '/* personal assistant features */\n' + assistantModules + '\nvar BHAssistantPanel=' + assistantPanel.trim() + ';\n');
@@ -31,14 +104,12 @@ function personalizeBoss(input, {projectConfig, versionPanel, appMenu, assistant
   output = replaceSection(output, 'function hh(e){', 'async function gh(', 'function hh(e){return BHReadFiltering(e)}');
   output = replaceSection(output, 'aiFiltering=Oh(', 'activityFilter=Oh(',
     'aiFiltering=Oh(`AI筛选`,e=>{if(e.helper.conf.formData.aiFiltering.enable){if(!e.helper.chatModel.createAgent(e.helper.conf.formData.aiFiltering,`filtering`,{json:!0}))throw new yh(`aiFiltering.model`,`AI筛选模型未配置`);return BHScreenJob}},{state:`ai`,stateMsg:`AI筛选中`});');
-  output = replaceOnce(output,
-    'Oh(`岗位投递`,()=>async(e,{rawData:t})=>(await uh({securityId:t.jobitem.securityId,encryptJobId:t.jobitem.encryptJobId}),{status:`success`,msg:`投递成功`}))',
-    'Oh(`岗位投递`,()=>async(e,BHJob)=>{BHAssertFiltered(e.helper,BHJob);let t=BHJob.rawData;return await uh({securityId:t.jobitem.securityId,encryptJobId:t.jobitem.encryptJobId}),{status:`success`,msg:`投递成功`}})');
+  output = personalizeDelivery(output);
   output = replaceOnce(output,
     'aiFiltering:{label:`AI过滤`,"data-help":`根据工作内容让gpt分析过滤，真是太稳健了，不放过任何一个垃圾`}',
     'aiFiltering:{label:`AI筛选`,"data-help":`先判断核心职责，再按匹配分筛选；关键硬性条件未确认时跳过。通过及过滤理由可在日志查看。`}');
   output = replaceOnce(output, 'e.bhStopReason===`communication`?`扩展通信中断`:`平台保护停止`',
-    'e.bhStopReason===`communication`?`扩展通信中断`:e.bhStopReason===`ai`?`AI服务停止`:`平台保护停止`');
+    'e.bhStopReason===`communication`?`扩展通信中断`:e.bhStopReason===`ai`?`AI服务停止`:e.bhStopReason===`workflow`?`连续岗位处理失败`:`平台保护停止`');
   output = replaceOnce(output, 'async function BHDirectGenerate(e,t,{timeout:n=9e4,maxOutputTokens:r=8000}={})',
     'async function BHDirectGenerate(e,t,{timeout:n=9e4,maxOutputTokens:r=8000,signal:BHSignal,fast:BHFast=!1}={})');
   output = replaceOnce(output, 'signal:AbortSignal.timeout(n)',

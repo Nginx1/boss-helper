@@ -13,7 +13,7 @@ const slice = (text, start, end) => {
 const quiet = {info() {}, warn() {}, error() {}, debug() {}};
 const context = vm.createContext({console: quiet, TextDecoder, TextEncoder, Uint8Array, DataView, Blob,
   atob, DecompressionStream, performance, setTimeout, clearTimeout});
-vm.runInContext(slice(source, 'function BHRPlain(', 'var BHAssistantPanel=') +
+vm.runInContext(slice(source, 'function BHRPlain(', 'const BHDeliveryRecords') +
   slice(source, 'function BHAddResumeContext(', 'function BHFastAIRequest(') +
   slice(content, 'var BHRFileLimit', 'var e=(e,t)=>'), context);
 const native = value => JSON.parse(JSON.stringify(value));

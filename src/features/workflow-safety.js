@@ -3,7 +3,8 @@ class BHSafetyStopError extends Error {
   constructor(message, reason = "platform") {
     super(message);
     this.bhStopReason = reason;
-    this.name = reason === "communication" ? "扩展通信中断" : reason === "cancelled" ? "任务已停止" : reason === "ai" ? "AI服务停止" : "平台保护停止";
+    this.name = reason === "communication" ? "扩展通信中断" : reason === "cancelled" ? "任务已停止" : reason === "ai" ? "AI服务停止" :
+      reason === "workflow" ? "连续岗位处理失败" : "平台保护停止";
     this.bhStopAll = true;
   }
 }
@@ -28,6 +29,16 @@ function BHPlatformRestriction(response, httpStatus = 200) {
 function BHShouldStop(error) {
   return !!error?.bhStopAll || error instanceof ih || error instanceof rh ||
     (error?.error_type === "boss-helper" && !!BHPlatformRestriction({code: 1, message: error.message}));
+}
+
+function BHConsecutiveFailure(run, error) {
+  if (BHShouldStop(error)) return error;
+  run.failures++;
+  if (run.failures < 3) return null;
+  const stop = new BHSafetyStopError(`连续 ${run.failures} 个岗位处理失败，最近一次：${error?.message || String(error)}`,
+    error?.bhStopReason || 'workflow');
+  stop.cause = error;
+  return stop;
 }
 
 async function BHPlatformJSON(response) {
@@ -114,13 +125,6 @@ function BHParseGreetingTexts(text, count) {
 
 function BHIsBridgeUnavailable(error) {
   return /Provider unavailable|heartbeat check timeout|Could not establish connection|Receiving end does not exist|Extension context invalidated|message (?:port|channel).{0,30}closed|Extension bridge request failed|Bridge method unavailable/i.test(String(error?.message || error));
-}
-
-function BHBridgeStop(error) {
-  const stop = new BHSafetyStopError(
-    "扩展内部通信中断，已停止本轮。请重新加载扩展并刷新BOSS页面后继续：" + String(error?.message || error), "communication");
-  stop.cause = error;
-  return stop;
 }
 
 function BHRestoreJobDetail(record, detail) {
@@ -439,6 +443,7 @@ async function BHScreenJob(context, job) {
   const result = await helper.chatModel.chat('filtering', job);
   const assessment = BHReadFiltering(result.text, BHFilteringOptions(helper, job));
   if (policy !== BHFilteringPolicy(helper)) throw new BHSafetyStopError('筛选配置或简历已变化，请重新开始筛选', 'ai');
+  BHRecordScreening(job, assessment, threshold);
   if (assessment.coreMismatch) return xh.skip('核心职责不匹配\n' + assessment.message);
   if (assessment.requiresReview) return xh.skip('待人工确认（' + assessment.reviewReason + '）\n' + assessment.message);
   if (assessment.rating < threshold) return xh.skip('低于筛选及格线' + threshold + '分\n' + assessment.message);
@@ -528,11 +533,15 @@ async function BHGenerateCachedAI(owner, task, job, config, messages) {
           /timed out|failed to fetch|network|no output generated|AI返回为空|AI筛选返回格式无效|AI招呼返回格式无效|状态码:\s*(502|503|504)/i.test(String(error?.message || error));
         const wait = bridgeUnavailable ? 15000 : /返回格式无效|AI返回为空/i.test(String(error?.message || error)) ? 500 : 2000;
         if (timedOut || !retryable || attempt === attempts || performance.now() + wait + 1000 >= deadline) {
-          if (bridgeUnavailable) throw BHBridgeStop(error);
           const elapsed = ((performance.now() - started) / 1000).toFixed(1);
           const detail = timedOut ? '等待AI响应超时，未取得完整结果' : String(error?.message || error);
-          const stop = new BHSafetyStopError(`${stage}服务失败（模型${config.model || '未命名'}，${service || '服务未标注'}），已停止本轮：${detail}（累计${elapsed}秒，本轮预算${Math.ceil(budget / 1000)}秒）`, 'ai');
-          stop.cause = error; throw stop;
+          const message = `${stage}服务失败（模型${config.model || '未命名'}，${service || '服务未标注'}）：${detail}（累计${elapsed}秒，本轮预算${Math.ceil(budget / 1000)}秒）`;
+          const reason = bridgeUnavailable ? 'communication' : 'ai';
+          const terminal = /Extension context invalidated|API Key为空|状态码:\s*(401|402|403|404|429)\b/i.test(detail);
+          const failure = terminal ? new BHSafetyStopError(message, reason) : new Error(message);
+          failure.bhStopReason = reason;
+          failure.cause = error;
+          throw failure;
         }
         BHLogAI(owner.ctx, 'warn', 'AI请求重试', `${stage}；${wait / 1000}秒后重试一次：${String(error?.message || error)}`);
         await BHWaitUntil(performance.now() + wait, () => ["stop", "error"].includes(owner.ctx.workflow?.status?.value));

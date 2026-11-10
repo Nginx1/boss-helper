@@ -239,6 +239,7 @@ async function testRetryAndWorkflow() {
     calls.push('generate'); const result = results.shift(); if (result instanceof Error) throw result; return {text: result};
   }, hh: text => assert.equal(text, filteringText),
   BHWaitUntil: async (deadline, stopped) => waits.push({deadline, stopped: stopped()}),
+  BHStartDeliveryRecord() {}, BHFinishDeliveryRecord() {}, BHSaveUnprocessedDelivery() {},
   N: value => ({value}), ln: value => ({value}), K: getter => ({get value() {return getter();}}),
   ld: value => value, Th: value => value, vh: class extends Error {}, alert: () => {throw Error('Unexpected alert');}});
   const helper = {conf: {formData: {}}, workflow: {status: {value: 'running'}}};
@@ -249,7 +250,7 @@ async function testRetryAndWorkflow() {
   results.push(Error('Provider unavailable: heartbeat check timeout 10000ms.'), Error('Provider unavailable: heartbeat check timeout 10000ms.'));
   let communicationStop;
   await assert.rejects(ctx.BHGenerateCachedAI(owner, 'filtering', {jobData: {key: 'unavailable'}}, {}, []), error => {
-    communicationStop = error; return !!(error.bhStopAll && error.bhStopReason === 'communication' && error.cause);
+    communicationStop = error; return !!(!error.bhStopAll && error.bhStopReason === 'communication' && error.cause);
   });
   assert.equal(calls.length, 4); assert.equal(waits.length, 2);
   helper.workflow.status.value = 'stop';
@@ -258,26 +259,26 @@ async function testRetryAndWorkflow() {
   results.push(Error('AI筛选返回格式无效'));
   const originalCalls = calls.length;
   results.push(Error('AI筛选返回格式无效'));
-  await assert.rejects(ctx.BHGenerateCachedAI(owner, 'filtering', {jobData: {key: 'ai-error'}}, {}, []), error => error.bhStopAll && error.bhStopReason === 'ai');
+  await assert.rejects(ctx.BHGenerateCachedAI(owner, 'filtering', {jobData: {key: 'ai-error'}}, {}, []), error => !error.bhStopAll && error.bhStopReason === 'ai');
   assert.equal(calls.length, originalCalls + 2);
 
   vm.runInContext(section(boss, 'async function Eh(', 'var Dh='), ctx);
-  async function runWorkflow(error) {
+  async function runWorkflow(error, expected = 1) {
     let executed = 0, pages = 0;
     const pacing = {beforeTask: async () => {}, startJob() {}, recordTask() {}, finishJob() {}, resetStats() {},
       waitConfigured: async () => {}, waitReady: async () => {}, finishRun() {}};
     const helper = {conf: {formData: {}}, _bhPacing: pacing, logs: logger,
-      jobList: {value: [{key: 'first', jobName: '第一岗位'}, {key: 'second', jobName: '第二岗位'}]},
+      jobList: {value: ['first', 'second', 'third', 'fourth'].map(key => ({key, jobName: key}))},
       jobMaps: new Map(), jobResultMaps: new Map(), currentJob: {value: null},
       statistics: {todayData: {value: {total: 0, success: 0, tasks: {}}}},
       notification: () => {}, loadMoreJob: async () => {pages++; return false;}};
     const task = {id: 'AI筛选', deps: [], before: [], after: [], task: async () => async () => {executed++; throw error;}};
     const workflow = await ctx.Eh([task], helper); helper.workflow = workflow;
-    const before = logs.length; await workflow.executeAll(new Map([['first', {}], ['second', {}]]));
-    assert.equal(executed, 1); assert.equal(pages, 0); assert.equal(workflow.status.value, 'stop');
+    const before = logs.length; await workflow.executeAll(new Map(helper.jobList.value.map(job => [job.key, {}])));
+    assert.equal(executed, expected); assert.equal(pages, 0); assert.equal(workflow.status.value, 'stop');
     return {result: helper.jobResultMaps.get('first'), logs: logs.slice(before)};
   }
-  const interrupted = await runWorkflow(communicationStop);
+  const interrupted = await runWorkflow(communicationStop, 3);
   assert.equal(interrupted.result.status, 'error'); assert(interrupted.logs.some(log => log.args[0] === '扩展通信中断'));
   const cancelled = await runWorkflow(new ctx.StopError('投递已停止，未发送后续消息', 'cancelled'));
   assert.equal(cancelled.result.status, 'wait'); assert(!cancelled.logs.some(log => log.level === 'error'));

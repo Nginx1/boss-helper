@@ -61,7 +61,7 @@ function assessmentChecks() {
   assert.equal(context.hh({negative: [], positive: [{reason: '没有匹配分', score: 0}]}).rating, 0);
   assert.throws(() => context.hh({negative: [], positive: [], unknown: [{reason: 30}]}), /格式无效/);
   Object.assign(context, {Oh: (_name, factory) => () => ({task: factory}), yh: Error,
-    xh: {skip: message => ({isSkip: true, message})}});
+    xh: {skip: message => ({isSkip: true, message})}, BHRecordScreening() {}});
   vm.runInContext('globalThis.FilterTask=class {' + section('aiFiltering=Oh(', 'activityFilter=Oh(') + '};', context);
   const hints = [];
   const matchingWindows = {core: {status: 'match', reason: '服务器职责匹配，附加产品仅待了解',
@@ -86,7 +86,7 @@ async function requestChecks() {
   const liveLogger = fixture(async () => {throw retryCause;});
   delete liveLogger.owner.ctx.logs.warn;
   await assert.rejects(liveLogger.context.BHGenerateCachedAI(liveLogger.owner, 'filtering', liveLogger.job, {}, []),
-    error => error.bhStopAll && error.bhStopReason === 'ai' && error.cause === retryCause);
+    error => !error.bhStopAll && error.bhStopReason === 'ai' && error.cause === retryCause);
   assert.equal(liveLogger.calls.length, 2);
   assert.deepEqual(liveLogger.waits, [2000]);
   assert(liveLogger.logs.some(item => item.args[0] === 'AI请求重试' && item.args[1].includes(retryCause.message)));
@@ -208,7 +208,7 @@ async function localResumeChecks() {
   vm.runInContext(background.slice(at, end), context);
   const local = await context.BHLoadLocalResume(); assert.equal(local.resumeText, data.resumeText); assert(!('apiKey' in local));
   assert.equal(requested[0], 'chrome-extension://offline/private/resume-context.json');
-  const method = background.indexOf('async backgroundTest(e){'), methodEnd = background.indexOf('async fetch(...e){', method);
+  const method = background.indexOf('async backgroundTest(e,request){'), methodEnd = background.indexOf('async fetch(...e){', method);
   vm.runInContext('globalThis.LocalService=class {' + background.slice(method, methodEnd) + '};', context);
   assert.equal((await new context.LocalService().backgroundTest('boss-helper:local-resume:v1')).resumeText, data.resumeText);
   assert.equal(typeof await new context.LocalService().backgroundTest(), 'number');
